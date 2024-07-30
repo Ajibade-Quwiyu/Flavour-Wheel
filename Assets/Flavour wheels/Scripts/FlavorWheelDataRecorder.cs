@@ -5,18 +5,9 @@ using TMPro;
 
 public class FlavorWheelDataRecorder : MonoBehaviour
 {
-    public enum Spirit
-    {
-        Spirit1, // Identifies Spirit 1
-        Spirit2, // Identifies Spirit 2
-        Spirit3, // Identifies Spirit 3
-        Spirit4, // Identifies Spirit 4
-        Spirit5  // Identifies Spirit 5
-    }
-
     public Transform duplicatedWheel; // Serialized field for the duplicated wheel
     public Transform Rating; // Serialized field for the Rating buttons
-    public Spirit spiritType; // Identify which spirit this FlavorWheelDataRecorder corresponds to
+    public Text spiritNameText; // Public Text field to hold the spirit name
 
     private Transform names; // Transform for names, automatically set as the first child of duplicatedWheel
     private Text scoreText; // Text component for score, automatically set as the second child of duplicatedWheel
@@ -257,12 +248,12 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         // Update the score text
         if (scoreText != null)
         {
-            scoreText.text = currentRating + ".0";
+            scoreText.text = currentRating.ToString();
         }
 
         if (scoreTextMain != null)
         {
-            scoreTextMain.text = currentRating + ".0";
+            scoreTextMain.text = currentRating.ToString();
         }
     }
 
@@ -390,10 +381,21 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
     private void UpdateSpiritManager()
     {
-        // Update the SpiritManager with the current data
-        if (spiritManager != null)
+        // Update the "Spirit" text child of duplicatedWheel with the spirit name
+        if (duplicatedWheel != null && duplicatedWheel.childCount > 2)
         {
-            spiritManager.UpdateSpiritData(spiritType, selectedFlavors.Count, currentRating);
+            Text spiritText = duplicatedWheel.GetChild(2).GetComponent<Text>();
+            if (spiritText != null)
+            {
+                spiritText.text = spiritNameText.text;
+            }
+        }
+
+        // Send the data to the SpiritManager
+        if (spiritManager != null && spiritNameText != null)
+        {
+            string spiritName = spiritNameText.text;
+            spiritManager.ReceiveSpiritData(spiritName, selectedFlavors.Count, currentRating);
         }
     }
 }

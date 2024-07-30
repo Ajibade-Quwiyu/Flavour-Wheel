@@ -1,228 +1,379 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 using MySql.Data.MySqlClient;
+using System;
+using System.Linq;
+using UnityEngine.UI;
 
 public class SpiritManager : MonoBehaviour
 {
     public class SpiritInfo
     {
-        public string Name; // Name of the spirit
-        public int SelectedFlavors; // Number of selected flavors
-        public int Rating; // Rating of the spirit
+        public string Name;
+        public int SelectedFlavors;
+        public int Rating;
 
-        public SpiritInfo(string name)
+        public SpiritInfo(string name, int selectedFlavors = 0, int rating = 0)
         {
             Name = name;
-            SelectedFlavors = 0;
-            Rating = 0;
+            SelectedFlavors = selectedFlavors;
+            Rating = rating;
         }
     }
 
-    public Transform topThreeSpiritsText; // Transform housing three Unity Text components
-    private Text[] topThreeTexts; // Array to hold references to the Text components
-    public string playerName; // Player's name
-    public TextMeshProUGUI allPlayerDataText; // TextMeshPro component to display all player data
-    public Transform Playerdata; // Transform housing player data children
+    public Transform localTopThree;
+    public TMP_Text usernameText;
+    public List<Transform> SpiritNamesList;
 
-    private Dictionary<FlavorWheelDataRecorder.Spirit, SpiritInfo> spiritData = new Dictionary<FlavorWheelDataRecorder.Spirit, SpiritInfo>();
+    public Transform FlavourTable1; // Transform with several children, each having 7 TMP text components
+    public Transform FlavourTable2; // Transform with 6 children, each having 5 TMP text components
+    public Transform generalTopThree; // Transform with three children, each having one TMP text component
+
+    private Dictionary<string, SpiritInfo> spiritData = new Dictionary<string, SpiritInfo>();
     private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
+    private string username;
+    private string email;
+    private int overallRating;
+    private string feedback;
 
-    void Start()
+    private List<string> spiritNames = new List<string>();
+
+    public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
     {
-        // Initialize the spirit data
-        spiritData.Add(FlavorWheelDataRecorder.Spirit.Spirit1, new SpiritInfo("Spirit1"));
-        spiritData.Add(FlavorWheelDataRecorder.Spirit.Spirit2, new SpiritInfo("Spirit2"));
-        spiritData.Add(FlavorWheelDataRecorder.Spirit.Spirit3, new SpiritInfo("Spirit3"));
-        spiritData.Add(FlavorWheelDataRecorder.Spirit.Spirit4, new SpiritInfo("Spirit4"));
-        spiritData.Add(FlavorWheelDataRecorder.Spirit.Spirit5, new SpiritInfo("Spirit5"));
-
-        // Initialize the top three Text components
-        if (topThreeSpiritsText != null && topThreeSpiritsText.childCount >= 3)
+        if (spiritData.ContainsKey(spiritName))
         {
-            topThreeTexts = new Text[3];
-            for (int i = 0; i < 3; i++)
-            {
-                topThreeTexts[i] = topThreeSpiritsText.GetChild(i).GetComponent<Text>();
-            }
+            spiritData[spiritName].SelectedFlavors = selectedFlavors;
+            spiritData[spiritName].Rating = rating;
         }
         else
         {
-            Debug.LogError("TopThreeSpiritsText is not set properly or does not have at least three children.");
+            spiritData.Add(spiritName, new SpiritInfo(spiritName, selectedFlavors, rating));
         }
 
-        // Initialize the TextMeshPro component with a default message
-        if (allPlayerDataText != null)
-        {
-            allPlayerDataText.text = "No data available yet.";
-        }
-
-        // Get and display all player data from the database
-        GetAllPlayerData();
+        UpdateTopThreeSpirits();
+        UpdateFlavourTable2LocalData();
     }
 
-    public void UpdateSpiritData(FlavorWheelDataRecorder.Spirit spiritType, int selectedFlavors, int rating)
+    public void SetUserData(string username, string email, int overallRating, string feedback)
     {
-        // Update spirit data with new information
-        if (spiritData.ContainsKey(spiritType))
-        {
-            var spiritInfo = spiritData[spiritType];
-            spiritInfo.SelectedFlavors = selectedFlavors;
-            spiritInfo.Rating = rating;
-
-            // Update the top three spirits display
-            UpdateTopThreeSpirits();
-        }
-    }
-
-    public SpiritInfo GetSpiritInfo(FlavorWheelDataRecorder.Spirit spiritType)
-    {
-        // Get information about a specific spirit
-        if (spiritData.ContainsKey(spiritType))
-        {
-            return spiritData[spiritType];
-        }
-        return null;
-    }
-
-    public void DebugAllSpiritInfo()
-    {
-        // Debug information for all spirits
-        foreach (var spirit in spiritData)
-        {
-            var info = spirit.Value;
-            Debug.Log($"Name: {info.Name}, Selected Flavors: {info.SelectedFlavors}, Rating: {info.Rating}");
-        }
+        this.username = username;
+        this.email = email;
+        this.overallRating = overallRating;
+        this.feedback = feedback;
     }
 
     private void UpdateTopThreeSpirits()
     {
-        // Get the top three spirits by rating
-        var topThreeSpirits = new List<SpiritInfo>(spiritData.Values);
-        topThreeSpirits.Sort((x, y) => y.Rating.CompareTo(x.Rating));
+        List<SpiritInfo> sortedSpirits = new List<SpiritInfo>(spiritData.Values);
+        sortedSpirits.Sort((a, b) => b.Rating.CompareTo(a.Rating));
 
-        // Update the Text components with the names of the top three spirits
-        for (int i = 0; i < topThreeTexts.Length; i++)
+        for (int i = 0; i < localTopThree.childCount && i < sortedSpirits.Count; i++)
         {
-            if (i < topThreeSpirits.Count)
-            {
-                topThreeTexts[i].text = topThreeSpirits[i].Name;
-            }
-            else
-            {
-                topThreeTexts[i].text = string.Empty;
-            }
+            localTopThree.GetChild(i).GetComponent<Text>().text = sortedSpirits[i].Name;
         }
-    }
 
-    public void SendDataToDatabaseAndRefresh()
-    {
-        // Send player data to the database
-        SendDataToDatabase();
-
-        // Get and display all player data from the database
-        GetAllPlayerData();
-    }
-
-    private void SendDataToDatabase()
-    {
-        // Send player data to the database
-        using (var connection = new MySqlConnection(connectionString))
+        for (int i = sortedSpirits.Count; i < localTopThree.childCount; i++)
         {
-            connection.Open();
+            localTopThree.GetChild(i).GetComponent<Text>().text = string.Empty;
+        }
 
-            string query = "INSERT INTO Douglas (PlayerName, Spirit1, Spirit2, Spirit3, Spirit4, Spirit5, Rating) VALUES (@PlayerName, @Spirit1, @Spirit2, @Spirit3, @Spirit4, @Spirit5, @Rating)";
+        UpdateSpiritNamesList();
+    }
 
-            using (var command = new MySqlCommand(query, connection))
+    private void UpdateSpiritNamesList()
+    {
+        string[] spiritNamesArray = new string[5];
+        for (int i = 0; i < 5; i++)
+        {
+            spiritNamesArray[i] = "";
+        }
+
+        // Populate spiritNames array with actual values
+        int spiritIndex = 0;
+        foreach (var spirit in spiritData.Values)
+        {
+            if (spiritIndex < 5)
             {
-                command.Parameters.AddWithValue("@PlayerName", playerName);
-                command.Parameters.AddWithValue("@Spirit1", spiritData[FlavorWheelDataRecorder.Spirit.Spirit1].SelectedFlavors);
-                command.Parameters.AddWithValue("@Spirit2", spiritData[FlavorWheelDataRecorder.Spirit.Spirit2].SelectedFlavors);
-                command.Parameters.AddWithValue("@Spirit3", spiritData[FlavorWheelDataRecorder.Spirit.Spirit3].SelectedFlavors);
-                command.Parameters.AddWithValue("@Spirit4", spiritData[FlavorWheelDataRecorder.Spirit.Spirit4].SelectedFlavors);
-                command.Parameters.AddWithValue("@Spirit5", spiritData[FlavorWheelDataRecorder.Spirit.Spirit5].SelectedFlavors);
-                command.Parameters.AddWithValue("@Rating", CalculateOverallRating());
-                command.ExecuteNonQuery();
+                spiritNamesArray[spiritIndex] = spirit.Name;
+                spiritIndex++;
             }
         }
-    }
 
-    private int CalculateOverallRating()
-    {
-        // Calculate the overall rating based on individual ratings
-        int totalRating = 0;
-        foreach (var spirit in spiritData)
+        // Update the TMP_Text components in each transform in SpiritNamesList
+        foreach (var transform in SpiritNamesList)
         {
-            totalRating += spirit.Value.Rating;
-        }
-        return totalRating / spiritData.Count;
-    }
-
-    public void GetAllPlayerData()
-    {
-        // Get all player data from the database
-        using (var connection = new MySqlConnection(connectionString))
-        {
-            connection.Open();
-
-            string query = "SELECT * FROM Douglas";
-            using (var command = new MySqlCommand(query, connection))
+            TMP_Text[] textComponents = transform.GetComponentsInChildren<TMP_Text>();
+            for (int i = 0; i < textComponents.Length; i++)
             {
-                using (var reader = command.ExecuteReader())
+                if (i < spiritNamesArray.Length)
                 {
-                    string allData = "";
-                    if (reader.HasRows)
+                    textComponents[i].text = spiritNamesArray[i];
+                }
+                else
+                {
+                    textComponents[i].text = string.Empty;
+                }
+            }
+        }
+
+        // Save the spirit names for later use
+        spiritNames = new List<string>(spiritNamesArray);
+    }
+
+    private void UpdateFlavourTable2LocalData()
+    {
+        Transform localRatingsTransform = FlavourTable2.GetChild(0);
+        Transform localFlavoursTransform = FlavourTable2.GetChild(2);
+
+        int[] spiritRatings = new int[5];
+        int[] spiritFlavours = new int[5];
+        int spiritIndex = 0;
+
+        foreach (var spirit in spiritData.Values)
+        {
+            if (spiritIndex < 5)
+            {
+                spiritRatings[spiritIndex] = spirit.Rating;
+                spiritFlavours[spiritIndex] = spirit.SelectedFlavors;
+                spiritIndex++;
+            }
+        }
+
+        for (int i = 0; i < spiritRatings.Length; i++)
+        {
+            localRatingsTransform.GetChild(i).GetComponent<TMP_Text>().text = spiritRatings[i].ToString();
+            localFlavoursTransform.GetChild(i).GetComponent<TMP_Text>().text = spiritFlavours[i].ToString("F2");
+        }
+    }
+
+    private void UpdateFlavourTable2AverageData(decimal[] averageRatings, decimal[] averageFlavours)
+    {
+        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
+        Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
+        Transform multipliedTransform = FlavourTable2.GetChild(4);
+
+        for (int i = 0; i < averageRatings.Length; i++)
+        {
+            averageRatingsTransform.GetChild(i).GetComponent<TMP_Text>().text = averageRatings[i].ToString("F2");
+            averageFlavoursTransform.GetChild(i).GetComponent<TMP_Text>().text = averageFlavours[i].ToString("F2");
+            multipliedTransform.GetChild(i).GetComponent<TMP_Text>().text = (averageRatings[i] * averageFlavours[i]).ToString("F2");
+        }
+
+        UpdateFlavourTable2Ranks();
+        UpdateGeneralTopThree();
+    }
+
+    private void UpdateFlavourTable2Ranks()
+    {
+        Transform multipliedTransform = FlavourTable2.GetChild(4);
+        Transform ranksTransform = FlavourTable2.GetChild(5);
+
+        decimal[] multipliedValues = new decimal[5];
+        for (int i = 0; i < multipliedValues.Length; i++)
+        {
+            multipliedValues[i] = decimal.Parse(multipliedTransform.GetChild(i).GetComponent<TMP_Text>().text);
+        }
+
+        decimal[] sortedValues = multipliedValues.OrderByDescending(v => v).ToArray();
+
+        for (int i = 0; i < multipliedValues.Length; i++)
+        {
+            int rank = Array.IndexOf(sortedValues, multipliedValues[i]) + 1;
+            ranksTransform.GetChild(i).GetComponent<TMP_Text>().text = GetRankString(rank);
+        }
+    }
+
+    private void UpdateGeneralTopThree()
+    {
+        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
+        Transform ranksTransform = FlavourTable2.GetChild(5);
+        TMP_Text[] generalTopThreeTexts = new TMP_Text[3];
+
+        for (int i = 0; i < 3; i++)
+        {
+            generalTopThreeTexts[i] = generalTopThree.GetChild(i).GetComponent<TMP_Text>();
+        }
+
+        for (int i = 0; i < ranksTransform.childCount; i++)
+        {
+            string rankText = ranksTransform.GetChild(i).GetComponent<TMP_Text>().text;
+            if (rankText == "1st")
+            {
+                generalTopThreeTexts[0].text = spiritNames[i];
+            }
+            else if (rankText == "2nd")
+            {
+                generalTopThreeTexts[1].text = spiritNames[i];
+            }
+            else if (rankText == "3rd")
+            {
+                generalTopThreeTexts[2].text = spiritNames[i];
+            }
+        }
+    }
+
+    private string GetRankString(int rank)
+    {
+        switch (rank)
+        {
+            case 1: return "1st";
+            case 2: return "2nd";
+            case 3: return "3rd";
+            case 4: return "4th";
+            case 5: return "5th";
+            default: return rank.ToString();
+        }
+    }
+
+    public void SaveDataToPlayerDataTable()
+    {
+        using (MySqlConnection conn = new MySqlConnection(connectionString))
+        {
+            try
+            {
+                conn.Open();
+
+                string query = "INSERT INTO PlayerData (Username, Email, Spirit1Name, Spirit2Name, Spirit3Name, Spirit4Name, Spirit5Name, " +
+                               "Spirit1Flavours, Spirit2Flavours, Spirit3Flavours, Spirit4Flavours, Spirit5Flavours, " +
+                               "Spirit1Ratings, Spirit2Ratings, Spirit3Ratings, Spirit4Ratings, Spirit5Ratings, " +
+                               "OverallRating, Feedback) VALUES " +
+                               "(@Username, @Email, @Spirit1Name, @Spirit2Name, @Spirit3Name, @Spirit4Name, @Spirit5Name, " +
+                               "@Spirit1Flavours, @Spirit2Flavours, @Spirit3Flavours, @Spirit4Flavours, @Spirit5Flavours, " +
+                               "@Spirit1Ratings, @Spirit2Ratings, @Spirit3Ratings, @Spirit4Ratings, @Spirit5Ratings, " +
+                               "@OverallRating, @Feedback) " +
+                               "ON DUPLICATE KEY UPDATE " +
+                               "Email = VALUES(Email), Spirit1Name = VALUES(Spirit1Name), Spirit2Name = VALUES(Spirit2Name), Spirit3Name = VALUES(Spirit3Name), " +
+                               "Spirit4Name = VALUES(Spirit4Name), Spirit5Name = VALUES(Spirit5Name), " +
+                               "Spirit1Flavours = VALUES(Spirit1Flavours), Spirit2Flavours = VALUES(Spirit2Flavours), " +
+                               "Spirit3Flavours = VALUES(Spirit3Flavours), Spirit4Flavours = VALUES(Spirit4Flavours), " +
+                               "Spirit5Flavours = VALUES(Spirit5Flavours), " +
+                               "Spirit1Ratings = VALUES(Spirit1Ratings), Spirit2Ratings = VALUES(Spirit2Ratings), " +
+                               "Spirit3Ratings = VALUES(Spirit3Ratings), Spirit4Ratings = VALUES(Spirit4Ratings), " +
+                               "Spirit5Ratings = VALUES(Spirit5Ratings), " +
+                               "OverallRating = VALUES(OverallRating), Feedback = VALUES(Feedback);";
+
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@Username", username);
+                cmd.Parameters.AddWithValue("@Email", email);
+                cmd.Parameters.AddWithValue("@OverallRating", overallRating);
+                cmd.Parameters.AddWithValue("@Feedback", feedback);
+
+                // Initialize the spirit parameters to null or default values
+                for (int i = 1; i <= 5; i++)
+                {
+                    cmd.Parameters.Add(new MySqlParameter($"@Spirit{i}Name", DBNull.Value));
+                    cmd.Parameters.Add(new MySqlParameter($"@Spirit{i}Flavours", 0));
+                    cmd.Parameters.Add(new MySqlParameter($"@Spirit{i}Ratings", 0));
+                }
+
+                // Populate the spirit parameters with actual values
+                int spiritIndex = 1;
+                foreach (var spirit in spiritData.Values)
+                {
+                    cmd.Parameters[$"@Spirit{spiritIndex}Name"].Value = spirit.Name;
+                    cmd.Parameters[$"@Spirit{spiritIndex}Flavours"].Value = spirit.SelectedFlavors;
+                    cmd.Parameters[$"@Spirit{spiritIndex}Ratings"].Value = spirit.Rating;
+                    spiritIndex++;
+                }
+
+                cmd.ExecuteNonQuery();
+            }
+            catch (MySqlException e)
+            {
+                Debug.LogError($"Error saving player data: {e.Message}");
+            }
+        }
+    }
+
+    public void ClearPlayerDataTable()
+    {
+        using (MySqlConnection conn = new MySqlConnection(connectionString))
+        {
+            try
+            {
+                conn.Open();
+
+                string query = "TRUNCATE TABLE PlayerData";
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+
+                cmd.ExecuteNonQuery();
+            }
+            catch (MySqlException e)
+            {
+                Debug.LogError($"Error clearing player data: {e.Message}");
+            }
+        }
+    }
+
+    public void TableDatas()
+    {
+        using (MySqlConnection conn = new MySqlConnection(connectionString))
+        {
+            try
+            {
+                conn.Open();
+
+                string query = "SELECT * FROM PlayerData;";
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                int rowIndex = 0;
+                decimal[] totalRatings = new decimal[5];
+                decimal[] totalFlavours = new decimal[5];
+                int recordCount = 0;
+
+                while (reader.Read())
+                {
+                    string username = reader.GetString("Username");
+                    int spirit1Flavours = reader.GetInt32("Spirit1Flavours");
+                    int spirit2Flavours = reader.GetInt32("Spirit2Flavours");
+                    int spirit3Flavours = reader.GetInt32("Spirit3Flavours");
+                    int spirit4Flavours = reader.GetInt32("Spirit4Flavours");
+                    int spirit5Flavours = reader.GetInt32("Spirit5Flavours");
+                    int overallRating = reader.GetInt32("OverallRating");
+
+                    Transform row = FlavourTable1.GetChild(rowIndex);
+                    row.GetChild(0).GetComponent<TMP_Text>().text = username;
+                    row.GetChild(1).GetComponent<TMP_Text>().text = spirit1Flavours.ToString();
+                    row.GetChild(2).GetComponent<TMP_Text>().text = spirit2Flavours.ToString();
+                    row.GetChild(3).GetComponent<TMP_Text>().text = spirit3Flavours.ToString();
+                    row.GetChild(4).GetComponent<TMP_Text>().text = spirit4Flavours.ToString();
+                    row.GetChild(5).GetComponent<TMP_Text>().text = spirit5Flavours.ToString();
+                    row.GetChild(6).GetComponent<TMP_Text>().text = overallRating.ToString();
+
+                    totalRatings[0] += reader.GetDecimal("Spirit1Ratings");
+                    totalRatings[1] += reader.GetDecimal("Spirit2Ratings");
+                    totalRatings[2] += reader.GetDecimal("Spirit3Ratings");
+                    totalRatings[3] += reader.GetDecimal("Spirit4Ratings");
+                    totalRatings[4] += reader.GetDecimal("Spirit5Ratings");
+
+                    totalFlavours[0] += reader.GetDecimal("Spirit1Flavours");
+                    totalFlavours[1] += reader.GetDecimal("Spirit2Flavours");
+                    totalFlavours[2] += reader.GetDecimal("Spirit3Flavours");
+                    totalFlavours[3] += reader.GetDecimal("Spirit4Flavours");
+                    totalFlavours[4] += reader.GetDecimal("Spirit5Flavours");
+
+                    recordCount++;
+                    rowIndex++;
+                }
+
+                decimal[] averageRatings = new decimal[5];
+                decimal[] averageFlavours = new decimal[5];
+                if (recordCount > 0)
+                {
+                    for (int i = 0; i < totalRatings.Length; i++)
                     {
-                        // Log available columns
-                        List<string> columns = new List<string>();
-                        for (int i = 0; i < reader.FieldCount; i++)
-                        {
-                            columns.Add(reader.GetName(i));
-                        }
-
-                        int playerIndex = 0;
-                        while (reader.Read() && playerIndex < Playerdata.childCount)
-                        {
-                            try
-                            {
-                                string playerName = columns.Contains("PlayerName") ? reader.GetString(reader.GetOrdinal("PlayerName")) : "N/A";
-                                int spirit1 = columns.Contains("Spirit1") ? reader.GetInt32(reader.GetOrdinal("Spirit1")) : 0;
-                                int spirit2 = columns.Contains("Spirit2") ? reader.GetInt32(reader.GetOrdinal("Spirit2")) : 0;
-                                int spirit3 = columns.Contains("Spirit3") ? reader.GetInt32(reader.GetOrdinal("Spirit3")) : 0;
-                                int spirit4 = columns.Contains("Spirit4") ? reader.GetInt32(reader.GetOrdinal("Spirit4")) : 0;
-                                int spirit5 = columns.Contains("Spirit5") ? reader.GetInt32(reader.GetOrdinal("Spirit5")) : 0;
-                                int rating = columns.Contains("Rating") ? reader.GetInt32(reader.GetOrdinal("Rating")) : 0;
-
-                                Transform playerDataChild = Playerdata.GetChild(playerIndex);
-                                playerDataChild.GetChild(0).GetComponent<TextMeshProUGUI>().text = playerName;
-                                playerDataChild.GetChild(1).GetComponent<TextMeshProUGUI>().text = spirit1.ToString();
-                                playerDataChild.GetChild(2).GetComponent<TextMeshProUGUI>().text = spirit2.ToString();
-                                playerDataChild.GetChild(3).GetComponent<TextMeshProUGUI>().text = spirit3.ToString();
-                                playerDataChild.GetChild(4).GetComponent<TextMeshProUGUI>().text = spirit4.ToString();
-                                playerDataChild.GetChild(5).GetComponent<TextMeshProUGUI>().text = spirit5.ToString();
-                                playerDataChild.GetChild(6).GetComponent<TextMeshProUGUI>().text = rating.ToString();
-
-                                playerIndex++;
-
-                                allData += $"Player: {playerName}, Spirit1: {spirit1}, Spirit2: {spirit2}, Spirit3: {spirit3}, Spirit4: {spirit4}, Spirit5: {spirit5}, Rating: {rating}\n";
-                            }
-                            catch (MySqlException e)
-                            {
-                                Debug.LogError($"Error reading data: {e.Message}");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        allData = "No data available yet.";
-                    }
-
-                    if (allPlayerDataText != null)
-                    {
-                        allPlayerDataText.text = allData;
+                        averageRatings[i] = totalRatings[i] / recordCount;
+                        averageFlavours[i] = totalFlavours[i] / recordCount;
                     }
                 }
+
+                UpdateFlavourTable2AverageData(averageRatings, averageFlavours);
+            }
+            catch (MySqlException e)
+            {
+                Debug.LogError($"Error loading table data: {e.Message}");
             }
         }
     }
