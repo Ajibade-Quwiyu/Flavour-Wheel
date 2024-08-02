@@ -186,7 +186,6 @@ public class SpiritManager : MonoBehaviour
 
     private void UpdateGeneralTopThree()
     {
-        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
         Transform ranksTransform = FlavourTable2.GetChild(5);
         TMP_Text[] generalTopThreeTexts = new TMP_Text[3];
 
@@ -326,12 +325,12 @@ public class SpiritManager : MonoBehaviour
                 while (reader.Read())
                 {
                     string username = reader.GetString("Username");
-                    int spirit1Flavours = reader.GetInt32("Spirit1Flavours");
-                    int spirit2Flavours = reader.GetInt32("Spirit2Flavours");
-                    int spirit3Flavours = reader.GetInt32("Spirit3Flavours");
-                    int spirit4Flavours = reader.GetInt32("Spirit4Flavours");
-                    int spirit5Flavours = reader.GetInt32("Spirit5Flavours");
-                    int overallRating = reader.GetInt32("OverallRating");
+                    int spirit1Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit1Flavours")) ? 0 : reader.GetInt32("Spirit1Flavours");
+                    int spirit2Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit2Flavours")) ? 0 : reader.GetInt32("Spirit2Flavours");
+                    int spirit3Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit3Flavours")) ? 0 : reader.GetInt32("Spirit3Flavours");
+                    int spirit4Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit4Flavours")) ? 0 : reader.GetInt32("Spirit4Flavours");
+                    int spirit5Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit5Flavours")) ? 0 : reader.GetInt32("Spirit5Flavours");
+                    int overallRating = reader.IsDBNull(reader.GetOrdinal("OverallRating")) ? 0 : reader.GetInt32("OverallRating");
 
                     Transform row = FlavourTable1.GetChild(rowIndex);
                     row.GetChild(0).GetComponent<TMP_Text>().text = username;
@@ -342,17 +341,17 @@ public class SpiritManager : MonoBehaviour
                     row.GetChild(5).GetComponent<TMP_Text>().text = spirit5Flavours.ToString();
                     row.GetChild(6).GetComponent<TMP_Text>().text = overallRating.ToString();
 
-                    totalRatings[0] += reader.GetDecimal("Spirit1Ratings");
-                    totalRatings[1] += reader.GetDecimal("Spirit2Ratings");
-                    totalRatings[2] += reader.GetDecimal("Spirit3Ratings");
-                    totalRatings[3] += reader.GetDecimal("Spirit4Ratings");
-                    totalRatings[4] += reader.GetDecimal("Spirit5Ratings");
+                    totalRatings[0] += reader.IsDBNull(reader.GetOrdinal("Spirit1Ratings")) ? 0 : reader.GetDecimal("Spirit1Ratings");
+                    totalRatings[1] += reader.IsDBNull(reader.GetOrdinal("Spirit2Ratings")) ? 0 : reader.GetDecimal("Spirit2Ratings");
+                    totalRatings[2] += reader.IsDBNull(reader.GetOrdinal("Spirit3Ratings")) ? 0 : reader.GetDecimal("Spirit3Ratings");
+                    totalRatings[3] += reader.IsDBNull(reader.GetOrdinal("Spirit4Ratings")) ? 0 : reader.GetDecimal("Spirit4Ratings");
+                    totalRatings[4] += reader.IsDBNull(reader.GetOrdinal("Spirit5Ratings")) ? 0 : reader.GetDecimal("Spirit5Ratings");
 
-                    totalFlavours[0] += reader.GetDecimal("Spirit1Flavours");
-                    totalFlavours[1] += reader.GetDecimal("Spirit2Flavours");
-                    totalFlavours[2] += reader.GetDecimal("Spirit3Flavours");
-                    totalFlavours[3] += reader.GetDecimal("Spirit4Flavours");
-                    totalFlavours[4] += reader.GetDecimal("Spirit5Flavours");
+                    totalFlavours[0] += spirit1Flavours;
+                    totalFlavours[1] += spirit2Flavours;
+                    totalFlavours[2] += spirit3Flavours;
+                    totalFlavours[3] += spirit4Flavours;
+                    totalFlavours[4] += spirit5Flavours;
 
                     recordCount++;
                     rowIndex++;
@@ -376,5 +375,46 @@ public class SpiritManager : MonoBehaviour
                 Debug.LogError($"Error loading table data: {e.Message}");
             }
         }
+    }
+
+    // Methods to get data for the radar chart
+    public float GetLocalDataRating(int index)
+    {
+        Transform localRatingsTransform = FlavourTable2.GetChild(0);
+        if (index >= 0 && index < localRatingsTransform.childCount)
+        {
+            return float.Parse(localRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
+        }
+        return 0;
+    }
+
+    public float GetLocalDataFlavour(int index)
+    {
+        Transform localFlavoursTransform = FlavourTable2.GetChild(2);
+        if (index >= 0 && index < localFlavoursTransform.childCount)
+        {
+            return float.Parse(localFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
+        }
+        return 0;
+    }
+
+    public float GetAverageRating(int index)
+    {
+        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
+        if (index >= 0 && index < averageRatingsTransform.childCount)
+        {
+            return float.Parse(averageRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
+        }
+        return 0;
+    }
+
+    public float GetAverageFlavour(int index)
+    {
+        Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
+        if (index >= 0 && index < averageFlavoursTransform.childCount)
+        {
+            return float.Parse(averageFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
+        }
+        return 0;
     }
 }

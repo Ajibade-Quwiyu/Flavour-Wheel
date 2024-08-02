@@ -719,6 +719,9 @@
     <Reference Include="System.Xml.XPath.XDocument">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.4f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\Facades\System.Xml.XPath.XDocument.dll</HintPath>
     </Reference>
+    <Reference Include="UnityUIExtensions.editor">
+      <HintPath>Library\ScriptAssemblies\UnityUIExtensions.editor.dll</HintPath>
+    </Reference>
     <Reference Include="NativeCamera.Runtime">
       <HintPath>Library\ScriptAssemblies\NativeCamera.Runtime.dll</HintPath>
     </Reference>
@@ -727,6 +730,9 @@
     </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityUIExtensions">
+      <HintPath>Library\ScriptAssemblies\UnityUIExtensions.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>

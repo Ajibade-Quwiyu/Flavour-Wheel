@@ -1,44 +1,38 @@
 using UnityEngine;
-using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine.UI.Extensions; // Ensure this is the correct namespace
 
-public class UI_RadarChart : MonoBehaviour
+public class RadarChart : MonoBehaviour
 {
+    public enum DataType
+    {
+        MyThink,
+        MyDetects,
+        OtherThinks,
+        OtherDetects,
+        Neutral // Added Neutral data type
+    }
+
+    public SpiritManager spiritManager;
+    public DataType selectedDataType;
+
+    public float spirit1;
+    public float spirit2;
+    public float spirit3;
+    public float spirit4;
+    public float spirit5;
+
     public RectTransform radarChart;
-    public float spirit1_value1 = 1f;
-    public float spirit1_value2 = 1f;
-    public float spirit1_value3 = 1f;
-    public float spirit1_value4 = 1f;
-    public float spirit1_value5 = 1f;
+    public UILineRenderer lineRenderer;
+    public float lineWidth = 2f;
+    public Color lineColor = Color.red;
 
-    public float spirit2_value1 = 1f;
-    public float spirit2_value2 = 1f;
-    public float spirit2_value3 = 1f;
-    public float spirit2_value4 = 1f;
-    public float spirit2_value5 = 1f;
-
-    public float spirit3_value1 = 1f;
-    public float spirit3_value2 = 1f;
-    public float spirit3_value3 = 1f;
-    public float spirit3_value4 = 1f;
-    public float spirit3_value5 = 1f;
-
-    public float spirit4_value1 = 1f;
-    public float spirit4_value2 = 1f;
-    public float spirit4_value3 = 1f;
-    public float spirit4_value4 = 1f;
-    public float spirit4_value5 = 1f;
-
-    public float spirit5_value1 = 1f;
-    public float spirit5_value2 = 1f;
-    public float spirit5_value3 = 1f;
-    public float spirit5_value4 = 1f;
-    public float spirit5_value5 = 1f;
-
-    private RawImage radarImage;
+    private float minValue;
+    private float maxValue;
 
     void Start()
     {
-        radarImage = radarChart.GetComponent<RawImage>();
         UpdateRadarChart();
     }
 
@@ -47,85 +41,111 @@ public class UI_RadarChart : MonoBehaviour
         UpdateRadarChart();
     }
 
-    void UpdateRadarChart()
+    public void UpdateRadarChart()
     {
-        Texture2D texture = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-        for (int y = 0; y < texture.height; y++)
+        List<float> values = GetDataValues(selectedDataType);
+        if (values.Count == 5)
         {
-            for (int x = 0; x < texture.width; x++)
+            spirit1 = values[0];
+            spirit2 = values[1];
+            spirit3 = values[2];
+            spirit4 = values[3];
+            spirit5 = values[4];
+
+            if (selectedDataType == DataType.Neutral)
             {
-                texture.SetPixel(x, y, Color.clear);
+                minValue = 0;
+                maxValue = 1;
             }
-        }
+            else
+            {
+                minValue = values.Min();
+                maxValue = values.Max();
+            }
 
-        // Draw each spirit radar chart
-        DrawSpiritRadarChart(texture, new float[] { spirit1_value1, spirit1_value2, spirit1_value3, spirit1_value4, spirit1_value5 }, Color.red);
-        DrawSpiritRadarChart(texture, new float[] { spirit2_value1, spirit2_value2, spirit2_value3, spirit2_value4, spirit2_value5 }, Color.green);
-        DrawSpiritRadarChart(texture, new float[] { spirit3_value1, spirit3_value2, spirit3_value3, spirit3_value4, spirit3_value5 }, Color.blue);
-        DrawSpiritRadarChart(texture, new float[] { spirit4_value1, spirit4_value2, spirit4_value3, spirit4_value4, spirit4_value5 }, Color.yellow);
-        DrawSpiritRadarChart(texture, new float[] { spirit5_value1, spirit5_value2, spirit5_value3, spirit5_value4, spirit5_value5 }, Color.magenta);
-
-        texture.Apply();
-        radarImage.texture = texture;
-    }
-
-    void DrawSpiritRadarChart(Texture2D texture, float[] values, Color color)
-    {
-        Vector2[] vertices = new Vector2[6];
-        float angle = 360f / 5;
-
-        vertices[0] = Vector2.zero; // Center of the radar chart
-        for (int i = 0; i < 5; i++)
-        {
-            vertices[i + 1] = GetPoint(values[i], angle * i);
-        }
-
-        for (int i = 1; i < vertices.Length; i++)
-        {
-            Vector2 start = vertices[i];
-            Vector2 end = vertices[(i % 5) + 1];
-            DrawLine(texture, start, end, color);
+            UpdateRadarShape();
         }
     }
 
-    Vector2 GetPoint(float value, float angle)
+    private List<float> GetDataValues(DataType dataType)
     {
-        float rad = Mathf.Deg2Rad * angle;
-        return new Vector2(value * Mathf.Cos(rad), value * Mathf.Sin(rad));
+        List<float> values = new List<float>();
+
+        switch (dataType)
+        {
+            case DataType.MyThink:
+                values.Add(spiritManager.GetLocalDataRating(0));
+                values.Add(spiritManager.GetLocalDataRating(1));
+                values.Add(spiritManager.GetLocalDataRating(2));
+                values.Add(spiritManager.GetLocalDataRating(3));
+                values.Add(spiritManager.GetLocalDataRating(4));
+                break;
+            case DataType.MyDetects:
+                values.Add(spiritManager.GetLocalDataFlavour(0));
+                values.Add(spiritManager.GetLocalDataFlavour(1));
+                values.Add(spiritManager.GetLocalDataFlavour(2));
+                values.Add(spiritManager.GetLocalDataFlavour(3));
+                values.Add(spiritManager.GetLocalDataFlavour(4));
+                break;
+            case DataType.OtherThinks:
+                values.Add(spiritManager.GetAverageRating(0));
+                values.Add(spiritManager.GetAverageRating(1));
+                values.Add(spiritManager.GetAverageRating(2));
+                values.Add(spiritManager.GetAverageRating(3));
+                values.Add(spiritManager.GetAverageRating(4));
+                break;
+            case DataType.OtherDetects:
+                values.Add(spiritManager.GetAverageFlavour(0));
+                values.Add(spiritManager.GetAverageFlavour(1));
+                values.Add(spiritManager.GetAverageFlavour(2));
+                values.Add(spiritManager.GetAverageFlavour(3));
+                values.Add(spiritManager.GetAverageFlavour(4));
+                break;
+            case DataType.Neutral:
+                values.Add(1f); // Neutral values set to 1
+                values.Add(1f); // Neutral values set to 1
+                values.Add(1f); // Neutral values set to 1
+                values.Add(1f); // Neutral values set to 1
+                values.Add(1f); // Neutral values set to 1
+                break;
+        }
+
+        return values;
     }
 
-    void DrawLine(Texture2D texture, Vector2 start, Vector2 end, Color color)
+    private void UpdateRadarShape()
     {
-        int width = texture.width;
-        int height = texture.height;
-        start = new Vector2((start.x + 1) * 0.5f * width, (start.y + 1) * 0.5f * height);
-        end = new Vector2((end.x + 1) * 0.5f * width, (end.y + 1) * 0.5f * height);
-        int x0 = (int)start.x;
-        int y0 = (int)start.y;
-        int x1 = (int)end.x;
-        int y1 = (int)end.y;
+        float[] values = { spirit1, spirit2, spirit3, spirit4, spirit5 };
 
-        int dx = Mathf.Abs(x1 - x0);
-        int dy = Mathf.Abs(y1 - y0);
-        int sx = x0 < x1 ? 1 : -1;
-        int sy = y0 < y1 ? 1 : -1;
-        int err = dx - dy;
-
-        while (true)
+        for (int i = 0; i < values.Length; i++)
         {
-            texture.SetPixel(x0, y0, color);
-            if (x0 == x1 && y0 == y1) break;
-            int e2 = err * 2;
-            if (e2 > -dy)
-            {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx)
-            {
-                err += dx;
-                y0 += sy;
-            }
+            values[i] = Mathf.InverseLerp(minValue, maxValue, values[i]);
         }
+
+        int numPoints = values.Length;
+        Vector2[] points = new Vector2[numPoints + 1];
+
+        float width = radarChart.rect.width;
+        float height = radarChart.rect.height;
+        float centerX = width / 2;
+        float centerY = height / 2;
+        float maxRadius = Mathf.Min(width / 2, height / 2);
+
+        for (int i = 0; i < numPoints; i++)
+        {
+            float angle = (i * (2 * Mathf.PI / numPoints)) + (Mathf.PI / 2);
+            float radius = values[i] * maxRadius;
+            float x = centerX + radius * Mathf.Cos(angle);
+            float y = centerY + radius * Mathf.Sin(angle);
+            points[i] = new Vector2(x, y);
+        }
+
+        points[numPoints] = points[0]; // Closing the radar chart loop
+
+        // Setting up the line renderer
+        lineRenderer.Points = points;
+        lineRenderer.LineThickness = lineWidth;
+        lineRenderer.color = lineColor;
+        lineRenderer.SetAllDirty(); // Mark the line renderer as dirty to update the mesh
     }
 }
