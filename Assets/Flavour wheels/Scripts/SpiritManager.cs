@@ -38,6 +38,7 @@ public class SpiritManager : MonoBehaviour
     private string feedback;
 
     private List<string> spiritNames = new List<string>();
+    private bool isUpdating = false;
 
     public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
     {
@@ -233,6 +234,21 @@ public class SpiritManager : MonoBehaviour
             {
                 conn.Open();
 
+                // Check if username exists
+                string checkQuery = "SELECT COUNT(*) FROM PlayerData WHERE Username = @Username";
+                MySqlCommand checkCmd = new MySqlCommand(checkQuery, conn);
+                checkCmd.Parameters.AddWithValue("@Username", username);
+                int userExists = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                if (userExists > 0)
+                {
+                    // Delete existing record
+                    string deleteQuery = "DELETE FROM PlayerData WHERE Username = @Username";
+                    MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn);
+                    deleteCmd.Parameters.AddWithValue("@Username", username);
+                    deleteCmd.ExecuteNonQuery();
+                }
+
                 string query = "INSERT INTO PlayerData (Username, Email, Spirit1Name, Spirit2Name, Spirit3Name, Spirit4Name, Spirit5Name, " +
                                "Spirit1Flavours, Spirit2Flavours, Spirit3Flavours, Spirit4Flavours, Spirit5Flavours, " +
                                "Spirit1Ratings, Spirit2Ratings, Spirit3Ratings, Spirit4Ratings, Spirit5Ratings, " +
@@ -369,6 +385,13 @@ public class SpiritManager : MonoBehaviour
                 }
 
                 UpdateFlavourTable2AverageData(averageRatings, averageFlavours);
+
+                // Start the repeating update if it hasn't been started yet
+                if (!isUpdating)
+                {
+                    isUpdating = true;
+                    InvokeRepeating("TableDatas", 5f, 5f); // Start after 5 seconds, repeat every 5 seconds
+                }
             }
             catch (MySqlException e)
             {
