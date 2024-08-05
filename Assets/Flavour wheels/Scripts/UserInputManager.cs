@@ -2,67 +2,91 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using MySql.Data.MySqlClient;
+using System.Collections;
 using System.Collections.Generic;
 
 public class UserInputManager : MonoBehaviour
 {
-    public TMP_InputField usernameInputField; // Input field for the username
-    public TMP_InputField emailInputField; // Input field for the email
-    public TMP_InputField passcodeKeyInputField; // Input field for the passcode key
-    public TMP_InputField overallExperienceInputField; // Input field for overall experience
-    public Transform overallRatingTransform; // Transform for overall rating buttons and display
-    public Button submitButton; // Button to submit the input
-    public List<Text> spiritTextFields; // List of Text components to display spirits
-    public Text drinkCategoryText; // Text component to display drink category
-    public GameObject signInPage; // GameObject for the sign-in page
-    public GameObject gamePanel; // GameObject for the game panel
-    public SpiritManager spiritManager; // Reference to the SpiritManager
-    public AudioClip ratingSound; // Sound clip to play when rating buttons are pressed
+    public TMP_InputField usernameInputField;
+    public TMP_InputField emailInputField;
+    public TMP_InputField passcodeKeyInputField;
+    public TMP_InputField overallExperienceInputField;
+    public Transform overallRatingTransform;
+    public Button submitButton;
+    public List<Text> spiritTextFields;
+    public Text drinkCategoryText;
+    public GameObject signInPage;
+    public GameObject gamePanel;
+    public SpiritManager spiritManager;
+    public AudioClip ratingSound;
+    public ParticleSystem barley;
+    public float barleyDuration = 5f;
 
-    private GameObject incorrectPasscodeIndicator; // GameObject to indicate incorrect passcode
+    private GameObject incorrectPasscodeIndicator;
     private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
     private int overallRating = 0;
     private List<Button> ratingButtons = new List<Button>();
-    private AudioSource audioSource; // Audio source component to play sound
+    private AudioSource audioSource;
+
+    private const string UsernameKey = "PlayerUsername";
+    private const string EmailKey = "PlayerEmail";
 
     void Start()
     {
-        // Get the incorrect passcode indicator as a child of the submit button
         incorrectPasscodeIndicator = submitButton.transform.GetChild(0).gameObject;
 
-        // Add listeners to input fields to check if submit button should be interactable
         usernameInputField.onValueChanged.AddListener(delegate { CheckSubmitButtonInteractivity(); });
         emailInputField.onValueChanged.AddListener(delegate { CheckSubmitButtonInteractivity(); });
         passcodeKeyInputField.onValueChanged.AddListener(delegate { CheckSubmitButtonInteractivity(); });
 
-        // Add a listener to the submit button
         submitButton.onClick.AddListener(OnSubmitButtonClicked);
 
-        // Initially set the submit button as not interactable
         submitButton.interactable = false;
 
-        // Hide the incorrect passcode indicator
         incorrectPasscodeIndicator.SetActive(false);
 
-        // Ensure the correct initial state of the pages
         signInPage.SetActive(true);
         gamePanel.SetActive(false);
 
-        // Set up rating buttons
         for (int i = 2; i < 7; i++)
         {
-            int rating = i - 1; // Buttons are 2-6, ratings are 1-5
+            int rating = i - 1;
             Button ratingButton = overallRatingTransform.GetChild(i).GetComponent<Button>();
             ratingButton.onClick.AddListener(() => Rate(rating));
             ratingButtons.Add(ratingButton);
         }
 
-        // Get the AudioSource component from the Camera
         audioSource = Camera.main.GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = Camera.main.gameObject.AddComponent<AudioSource>();
         }
+
+        LoadUserData();
+
+        if (barley != null)
+        {
+            barley.gameObject.SetActive(false);
+        }
+    }
+
+    private void LoadUserData()
+    {
+        if (PlayerPrefs.HasKey(UsernameKey))
+        {
+            usernameInputField.text = PlayerPrefs.GetString(UsernameKey);
+        }
+        if (PlayerPrefs.HasKey(EmailKey))
+        {
+            emailInputField.text = PlayerPrefs.GetString(EmailKey);
+        }
+    }
+
+    private void SaveUserData()
+    {
+        PlayerPrefs.SetString(UsernameKey, usernameInputField.text);
+        PlayerPrefs.SetString(EmailKey, emailInputField.text);
+        PlayerPrefs.Save();
     }
 
     private void CheckSubmitButtonInteractivity()
@@ -77,7 +101,6 @@ public class UserInputManager : MonoBehaviour
         AdminData adminData = GetAdminDataFromDatabase();
         if (adminData != null && adminData.PasscodeKey == enteredPasscodeKey)
         {
-            // Passcode matches, update the UI elements
             drinkCategoryText.text = adminData.DrinkCategory + " WHEEL";
             spiritTextFields[0].text = adminData.Spirit1;
             spiritTextFields[1].text = adminData.Spirit2;
@@ -85,26 +108,46 @@ public class UserInputManager : MonoBehaviour
             spiritTextFields[3].text = adminData.Spirit4;
             spiritTextFields[4].text = adminData.Spirit5;
 
-            // Hide the incorrect passcode indicator
             incorrectPasscodeIndicator.SetActive(false);
 
-            // Switch to game panel
+            SaveUserData();
+
+            PlayBarleyEffect();
+
             signInPage.SetActive(false);
             gamePanel.SetActive(true);
-
-            
         }
         else
         {
-            // Show the incorrect passcode indicator
             incorrectPasscodeIndicator.SetActive(true);
         }
     }
+
+    private void PlayBarleyEffect()
+    {
+        if (barley != null)
+        {
+            barley.gameObject.SetActive(true);
+            barley.Play();
+            StartCoroutine(DeactivateBarleyAfterDelay());
+        }
+    }
+
+    private IEnumerator DeactivateBarleyAfterDelay()
+    {
+        yield return new WaitForSeconds(barleyDuration);
+
+        if (barley != null)
+        {
+            barley.Stop();
+            barley.gameObject.SetActive(false);
+        }
+    }
+
     public void Userdata()
     {
-        // Capture user data and submit
         string username = usernameInputField.text;
-        string email = !string.IsNullOrEmpty(emailInputField.text) ? emailInputField.text : "example@example.com"; // Check for null email
+        string email = !string.IsNullOrEmpty(emailInputField.text) ? emailInputField.text : "example@example.com";
         string feedback = overallExperienceInputField.text;
 
         if (spiritManager != null)
@@ -112,24 +155,22 @@ public class UserInputManager : MonoBehaviour
             spiritManager.SetUserData(username, email, overallRating, feedback);
         }
     }
+
     public void Rate(int rating)
     {
-        overallRating = rating; // Update current rating
+        overallRating = rating;
 
-        // Reset all buttons to their default color
         foreach (Button btn in ratingButtons)
         {
             btn.image.color = Color.white;
         }
 
-        // Change the color of the buttons based on the rating
-        Color gold = new Color(255 / 255f, 192 / 255f, 0 / 255f); // Gold color in RGB
+        Color gold = new Color(255 / 255f, 192 / 255f, 0 / 255f);
         for (int i = 0; i < rating; i++)
         {
             ratingButtons[i].image.color = gold;
         }
 
-        // If the last button is pressed, change the color of all buttons
         if (rating == 5)
         {
             foreach (Button btn in ratingButtons)
@@ -138,10 +179,8 @@ public class UserInputManager : MonoBehaviour
             }
         }
 
-        // Update the score display
         overallRatingTransform.GetChild(1).GetComponent<Text>().text = rating.ToString();
 
-        // Play the rating sound
         if (audioSource != null && ratingSound != null)
         {
             audioSource.PlayOneShot(ratingSound);

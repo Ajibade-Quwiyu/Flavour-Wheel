@@ -7,6 +7,7 @@ public class SelectionManager : MonoBehaviour
     public TMP_Text numberText;  // Reference to your TMP_Text component
     private int currentNumber = 0;
     public float animationDuration = 1f; // Duration of the animation
+    public float endpos = 50f; // Duration of the animation
 
     void Start()
     {
@@ -39,7 +40,7 @@ public class SelectionManager : MonoBehaviour
         changeTMP.transform.localPosition = numberText.transform.localPosition;
 
         Vector3 startPosition = changeTMP.transform.localPosition;
-        Vector3 endPosition = startPosition + new Vector3(0, 50, 0);
+        Vector3 endPosition = startPosition + new Vector3(0, endpos, 0);
         Color startColor = changeTMP.color;
         Color endColor = startColor;
         endColor.a = 0;

@@ -226,6 +226,12 @@ public class SpiritManager : MonoBehaviour
         }
     }
 
+    private Color GetFlavorColor(int flavor)
+    {
+        float t = Mathf.Clamp01((float)flavor / 7f);
+        return Color.Lerp(Color.yellow, Color.green, t);
+    }
+
     public void SaveDataToPlayerDataTable()
     {
         using (MySqlConnection conn = new MySqlConnection(connectionString))
@@ -350,12 +356,22 @@ public class SpiritManager : MonoBehaviour
 
                     Transform row = FlavourTable1.GetChild(rowIndex);
                     row.GetChild(0).GetComponent<TMP_Text>().text = username;
-                    row.GetChild(1).GetComponent<TMP_Text>().text = spirit1Flavours.ToString();
-                    row.GetChild(2).GetComponent<TMP_Text>().text = spirit2Flavours.ToString();
-                    row.GetChild(3).GetComponent<TMP_Text>().text = spirit3Flavours.ToString();
-                    row.GetChild(4).GetComponent<TMP_Text>().text = spirit4Flavours.ToString();
-                    row.GetChild(5).GetComponent<TMP_Text>().text = spirit5Flavours.ToString();
-                    row.GetChild(6).GetComponent<TMP_Text>().text = overallRating.ToString();
+
+                    // Update flavor texts and image colors
+                    int[] spiritFlavours = { spirit1Flavours, spirit2Flavours, spirit3Flavours, spirit4Flavours, spirit5Flavours };
+                    for (int i = 0; i < spiritFlavours.Length; i++)
+                    {
+                        Transform flavorTransform = row.GetChild(i + 1);
+                        flavorTransform.GetChild(0).GetComponent<TMP_Text>().text = spiritFlavours[i].ToString();
+                        flavorTransform.GetComponent<Image>().color = GetFlavorColor(spiritFlavours[i]);
+                    }
+
+                    // Update rating stars
+                    Transform ratingTransform = row.GetChild(6);
+                    for (int i = 0; i < ratingTransform.childCount; i++)
+                    {
+                        ratingTransform.GetChild(i).gameObject.SetActive(i < overallRating);
+                    }
 
                     totalRatings[0] += reader.IsDBNull(reader.GetOrdinal("Spirit1Ratings")) ? 0 : reader.GetDecimal("Spirit1Ratings");
                     totalRatings[1] += reader.IsDBNull(reader.GetOrdinal("Spirit2Ratings")) ? 0 : reader.GetDecimal("Spirit2Ratings");
@@ -404,40 +420,24 @@ public class SpiritManager : MonoBehaviour
     public float GetLocalDataRating(int index)
     {
         Transform localRatingsTransform = FlavourTable2.GetChild(0);
-        if (index >= 0 && index < localRatingsTransform.childCount)
-        {
-            return float.Parse(localRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
-        }
-        return 0;
+        return float.Parse(localRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
     }
 
     public float GetLocalDataFlavour(int index)
     {
         Transform localFlavoursTransform = FlavourTable2.GetChild(2);
-        if (index >= 0 && index < localFlavoursTransform.childCount)
-        {
-            return float.Parse(localFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
-        }
-        return 0;
+        return float.Parse(localFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
     }
 
     public float GetAverageRating(int index)
     {
         Transform averageRatingsTransform = FlavourTable2.GetChild(1);
-        if (index >= 0 && index < averageRatingsTransform.childCount)
-        {
-            return float.Parse(averageRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
-        }
-        return 0;
+        return float.Parse(averageRatingsTransform.GetChild(index).GetComponent<TMP_Text>().text);
     }
 
     public float GetAverageFlavour(int index)
     {
         Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
-        if (index >= 0 && index < averageFlavoursTransform.childCount)
-        {
-            return float.Parse(averageFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
-        }
-        return 0;
+        return float.Parse(averageFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text);
     }
 }
