@@ -63,7 +63,7 @@ public class UserInputManager : MonoBehaviour
         }
 
         LoadUserData();
-
+        
         if (barley != null)
         {
             barley.gameObject.SetActive(false);
@@ -98,16 +98,21 @@ public class UserInputManager : MonoBehaviour
 
     public void OnSubmitButtonClicked()
     {
+        
         string enteredPasscodeKey = passcodeKeyInputField.text;
 
         AdminData adminData = GetAdminDataFromDatabase();
+        Debug.Log(adminData);
+        Debug.Log(enteredPasscodeKey);
+        Debug.Log(enteredPasscodeKey);
         if (adminData != null && adminData.PasscodeKey == enteredPasscodeKey)
         {
+            
             UpdateUI(adminData);
             incorrectPasscodeIndicator.SetActive(false);
 
             SaveUserData();
-
+            
             PlayBarleyEffect();
 
             signInPage.SetActive(false);
@@ -123,6 +128,7 @@ public class UserInputManager : MonoBehaviour
     {
         if (barley != null)
         {
+            
             barley.gameObject.SetActive(true);
             barley.Play();
             StartCoroutine(DeactivateBarleyAfterDelay());
