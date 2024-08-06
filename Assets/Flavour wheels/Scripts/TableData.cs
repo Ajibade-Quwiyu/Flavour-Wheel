@@ -35,22 +35,6 @@ public class TableData : MonoBehaviour
         }
         verticalLayoutGroup.childForceExpandHeight = false;
         verticalLayoutGroup.childControlHeight = true;
-
-        // Example: Add some rows to the table
-        AddRow();
-        AddRow();
-        AddRow();
     }
 
-    public void AddRow()
-    {
-        if (rowPrefab == null)
-        {
-            Debug.LogError("Row prefab not assigned to TableData script!");
-            return;
-        }
-
-        GameObject newRow = Instantiate(rowPrefab, contentRect);
-        // You can customize the new row here if needed
-    }
 }
