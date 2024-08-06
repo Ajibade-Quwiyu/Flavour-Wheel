@@ -102,9 +102,6 @@ public class UserInputManager : MonoBehaviour
         string enteredPasscodeKey = passcodeKeyInputField.text;
 
         AdminData adminData = GetAdminDataFromDatabase();
-        Debug.Log(adminData);
-        Debug.Log(enteredPasscodeKey);
-        Debug.Log(enteredPasscodeKey);
         if (adminData != null && adminData.PasscodeKey == enteredPasscodeKey)
         {
             
