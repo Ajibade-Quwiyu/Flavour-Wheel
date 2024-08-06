@@ -68,6 +68,8 @@ public class UserInputManager : MonoBehaviour
         {
             barley.gameObject.SetActive(false);
         }
+
+        StartCoroutine(CheckForUpdates());
     }
 
     private void LoadUserData()
@@ -101,13 +103,7 @@ public class UserInputManager : MonoBehaviour
         AdminData adminData = GetAdminDataFromDatabase();
         if (adminData != null && adminData.PasscodeKey == enteredPasscodeKey)
         {
-            drinkCategoryText.text = adminData.DrinkCategory + " WHEEL";
-            spiritTextFields[0].text = adminData.Spirit1;
-            spiritTextFields[1].text = adminData.Spirit2;
-            spiritTextFields[2].text = adminData.Spirit3;
-            spiritTextFields[3].text = adminData.Spirit4;
-            spiritTextFields[4].text = adminData.Spirit5;
-
+            UpdateUI(adminData);
             incorrectPasscodeIndicator.SetActive(false);
 
             SaveUserData();
@@ -152,7 +148,7 @@ public class UserInputManager : MonoBehaviour
 
         if (spiritManager != null)
         {
-            spiritManager.SetUserData(username, email, overallRating, feedback);
+            spiritManager.SetUserData(PlayerPrefs.GetString(UsernameKey, "DefaultUsername"), PlayerPrefs.GetString(EmailKey, "DefaultEmail@example.com"), overallRating, feedback);
         }
     }
 
@@ -218,10 +214,34 @@ public class UserInputManager : MonoBehaviour
             catch (MySqlException e)
             {
                 Debug.LogError($"Error retrieving data: {e.Message}");
+                // Consider displaying this error to the user
             }
         }
 
         return adminData;
+    }
+
+    private IEnumerator CheckForUpdates()
+    {
+        while (true)
+        {
+            AdminData newData = GetAdminDataFromDatabase();
+            if (newData != null)
+            {
+                UpdateUI(newData);
+            }
+            yield return new WaitForSeconds(60); // Check every minute
+        }
+    }
+
+    private void UpdateUI(AdminData data)
+    {
+        drinkCategoryText.text = data.DrinkCategory + " WHEEL";
+        spiritTextFields[0].text = data.Spirit1;
+        spiritTextFields[1].text = data.Spirit2;
+        spiritTextFields[2].text = data.Spirit3;
+        spiritTextFields[3].text = data.Spirit4;
+        spiritTextFields[4].text = data.Spirit5;
     }
 
     public class AdminData

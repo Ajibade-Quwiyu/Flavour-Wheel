@@ -4,13 +4,24 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 
+
+
+
+
 public class AdminManager : MonoBehaviour
 {
     [SerializeField] private TMP_Dropdown drinkCategoryDropdown; // Dropdown for drink categories
     [SerializeField] private List<TMP_InputField> spiritInputFields; // List of input fields for spirits
     [SerializeField] private TMP_InputField passkeyInputField; // Input field for displaying the passkey
     [SerializeField] private Button generateKeyButton; // Button to generate the passkey
-
+    [SerializeField] private GameObject signinPage; // Sign-in page GameObject
+    [SerializeField] private UserInputManager userInputManager; // User input manager
+    public enum User
+    {
+        Admin,
+        Player
+    }
+    public User currentUser = User.Admin; // Default user type
     private string selectedDrinkCategory; // Selected drink category
     private List<string> spiritNames = new List<string>(); // List to store spirit names
     private string passkey; // Generated passkey
@@ -19,6 +30,19 @@ public class AdminManager : MonoBehaviour
 
     void Start()
     {
+        if (currentUser == User.Player)
+        {
+            this.gameObject.SetActive(false);
+            signinPage.SetActive(true);
+            userInputManager.enabled = true;
+        }
+        else
+        {
+            this.gameObject.SetActive(true);
+            signinPage.SetActive(false);
+            userInputManager.enabled = false;
+        }
+
         // Add a listener to the dropdown
         drinkCategoryDropdown.onValueChanged.AddListener(delegate { OnDrinkCategoryChanged(); });
 

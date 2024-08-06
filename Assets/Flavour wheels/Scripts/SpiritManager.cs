@@ -40,6 +40,9 @@ public class SpiritManager : MonoBehaviour
     private List<string> spiritNames = new List<string>();
     private bool isUpdating = false;
 
+    private const string UsernameKey = "Username";
+    private const string EmailKey = "Email";
+
     public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
     {
         if (spiritData.ContainsKey(spiritName))
@@ -58,10 +61,13 @@ public class SpiritManager : MonoBehaviour
 
     public void SetUserData(string username, string email, int overallRating, string feedback)
     {
-        this.username = username;
-        this.email = email;
-        this.overallRating = overallRating;
-        this.feedback = feedback;
+        Debug.Log($"SetUserData called with: username={username}, email={email}, overallRating={overallRating}, feedback={feedback}");
+        this.username = string.IsNullOrEmpty(username) ? PlayerPrefs.GetString(UsernameKey, "DefaultUsername") : username;
+        this.email = string.IsNullOrEmpty(email) ? PlayerPrefs.GetString(EmailKey, "DefaultEmail@example.com") : email;
+        this.overallRating = overallRating == 0 ? 0 : overallRating;
+        this.feedback = string.IsNullOrEmpty(feedback) ? "N/A" : feedback;
+
+        Debug.Log($"After checking PlayerPrefs: username={this.username}, email={this.email}, overallRating={this.overallRating}, feedback={this.feedback}");
     }
 
     private void UpdateTopThreeSpirits()
@@ -144,7 +150,7 @@ public class SpiritManager : MonoBehaviour
         for (int i = 0; i < spiritRatings.Length; i++)
         {
             localRatingsTransform.GetChild(i).GetComponent<TMP_Text>().text = spiritRatings[i].ToString();
-            localFlavoursTransform.GetChild(i).GetComponent<TMP_Text>().text = spiritFlavours[i].ToString("F2");
+            localFlavoursTransform.GetChild(i).GetComponent<TMP_Text>().text = spiritFlavours[i].ToString();
         }
     }
 
@@ -234,6 +240,14 @@ public class SpiritManager : MonoBehaviour
 
     public void SaveDataToPlayerDataTable()
     {
+        Debug.Log($"Saving data to PlayerDataTable: username={username}, email={email}, overallRating={overallRating}, feedback={feedback}");
+
+        // Log all spirit data being sent
+        foreach (var spirit in spiritData.Values)
+        {
+            Debug.Log($"Spirit Name: {spirit.Name}, Selected Flavors: {spirit.SelectedFlavors}, Rating: {spirit.Rating}");
+        }
+
         using (MySqlConnection conn = new MySqlConnection(connectionString))
         {
             try
@@ -292,7 +306,7 @@ public class SpiritManager : MonoBehaviour
                 int spiritIndex = 1;
                 foreach (var spirit in spiritData.Values)
                 {
-                    cmd.Parameters[$"@Spirit{spiritIndex}Name"].Value = spirit.Name;
+                    cmd.Parameters[$"@Spirit{spiritIndex}Name"].Value = string.IsNullOrEmpty(spirit.Name) ? "" : spirit.Name;
                     cmd.Parameters[$"@Spirit{spiritIndex}Flavours"].Value = spirit.SelectedFlavors;
                     cmd.Parameters[$"@Spirit{spiritIndex}Ratings"].Value = spirit.Rating;
                     spiritIndex++;
@@ -346,7 +360,7 @@ public class SpiritManager : MonoBehaviour
 
                 while (reader.Read())
                 {
-                    string username = reader.GetString("Username");
+                    string username = reader.IsDBNull(reader.GetOrdinal("Username")) ? "" : reader.GetString("Username");
                     int spirit1Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit1Flavours")) ? 0 : reader.GetInt32("Spirit1Flavours");
                     int spirit2Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit2Flavours")) ? 0 : reader.GetInt32("Spirit2Flavours");
                     int spirit3Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit3Flavours")) ? 0 : reader.GetInt32("Spirit3Flavours");
