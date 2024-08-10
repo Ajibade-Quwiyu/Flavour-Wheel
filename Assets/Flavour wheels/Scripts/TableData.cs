@@ -5,7 +5,6 @@ public class TableData : MonoBehaviour
 {
     public ScrollRect scrollView;
     public RectTransform contentRect;
-    public GameObject rowPrefab;
 
     private void Start()
     {

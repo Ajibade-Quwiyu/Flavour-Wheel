@@ -67,6 +67,7 @@
     <Compile Include="Assets\Flavour wheels\Scripts\SwipeUI.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SpiritManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\TableData.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\IntroManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\RadarChart.cs" />
   </ItemGroup>

@@ -93,7 +93,6 @@ public class AdminManager : MonoBehaviour
         {
             selectedDrinkCategory = "BOURBON";
         }
-        Debug.Log($"Selected Drink Category: {selectedDrinkCategory}");
     }
 
     private void GetSpiritNames()
