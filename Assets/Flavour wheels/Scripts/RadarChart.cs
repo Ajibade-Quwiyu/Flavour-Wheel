@@ -47,10 +47,10 @@ public class RadarChart : MonoBehaviour
         if (values.Count == 5)
         {
             spirit1 = values[0];
-            spirit2 = values[1];
-            spirit3 = values[2];
-            spirit4 = values[3];
-            spirit5 = values[4];
+            spirit2 = values[4];
+            spirit3 = values[3];
+            spirit4 = values[2];
+            spirit5 = values[1];
 
             if (selectedDataType == DataType.Neutral)
             {

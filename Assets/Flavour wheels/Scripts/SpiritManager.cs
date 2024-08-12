@@ -30,6 +30,8 @@ public class SpiritManager : MonoBehaviour
     public Transform FlavourTable2; // Transform with 6 children, each having 5 TMP text components
     public Transform generalTopThree; // Transform with three children, each having one TMP text component
 
+    public GameObject flavourRowPrefab; // Prefab to instantiate for each row
+
     private Dictionary<string, SpiritInfo> spiritData = new Dictionary<string, SpiritInfo>();
     private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
     private string username;
@@ -57,6 +59,48 @@ public class SpiritManager : MonoBehaviour
 
         UpdateTopThreeSpirits();
         UpdateFlavourTable2LocalData();
+        UpdateFlavourTable1();
+    }
+
+    private void UpdateFlavourTable1()
+    {
+        // Clear existing children
+        foreach (Transform child in FlavourTable1)
+        {
+            Destroy(child.gameObject);
+        }
+
+        int index = 0;
+        foreach (var spirit in spiritData)
+        {
+            // Instantiate prefab and set as child
+            GameObject row = Instantiate(flavourRowPrefab, FlavourTable1);
+            row.transform.GetChild(0).GetComponent<TMP_Text>().text = (index + 1).ToString(); // Index
+            row.transform.GetChild(1).GetComponent<TMP_Text>().text = spirit.Key; // Username
+
+            // Spirit1-5Flavours
+            int[] flavours = new int[]
+            {
+            spirit.Value.SelectedFlavors, // Replace with actual flavour data if available
+                                          // Add other flavour values if applicable
+            };
+
+            for (int i = 0; i < flavours.Length; i++)
+            {
+                Transform flavourTransform = row.transform.GetChild(2 + i);
+                flavourTransform.GetComponent<Image>().color = GetFlavorColor(flavours[i]);
+                flavourTransform.GetChild(0).GetComponent<TMP_Text>().text = flavours[i].ToString();
+            }
+
+            // Overall rating stars
+            Transform starRating = row.transform.GetChild(7);
+            for (int i = 0; i < 5; i++)
+            {
+                starRating.GetChild(i).gameObject.SetActive(i < spirit.Value.Rating);
+            }
+
+            index++;
+        }
     }
 
     public void SetUserData(string username, string email, int overallRating, string feedback)
@@ -358,6 +402,12 @@ public class SpiritManager : MonoBehaviour
                 decimal[] totalFlavours = new decimal[5];
                 int recordCount = 0;
 
+                // Clear existing children
+                foreach (Transform child in FlavourTable1)
+                {
+                    Destroy(child.gameObject);
+                }
+
                 while (reader.Read())
                 {
                     string username = reader.IsDBNull(reader.GetOrdinal("Username")) ? "" : reader.GetString("Username");
@@ -368,39 +418,52 @@ public class SpiritManager : MonoBehaviour
                     int spirit5Flavours = reader.IsDBNull(reader.GetOrdinal("Spirit5Flavours")) ? 0 : reader.GetInt32("Spirit5Flavours");
                     int overallRating = reader.IsDBNull(reader.GetOrdinal("OverallRating")) ? 0 : reader.GetInt32("OverallRating");
 
-                    Transform row = FlavourTable1.GetChild(rowIndex);
-                    row.GetChild(0).GetComponent<TMP_Text>().text = username;
-
-                    // Update flavor texts and image colors
-                    int[] spiritFlavours = { spirit1Flavours, spirit2Flavours, spirit3Flavours, spirit4Flavours, spirit5Flavours };
-                    for (int i = 0; i < spiritFlavours.Length; i++)
+                    // Instantiate prefab and set as child
+                    GameObject row = Instantiate(flavourRowPrefab, FlavourTable1);
+                    if (row != null)
                     {
-                        Transform flavorTransform = row.GetChild(i + 1);
-                        flavorTransform.GetChild(0).GetComponent<TMP_Text>().text = spiritFlavours[i].ToString();
-                        flavorTransform.GetComponent<Image>().color = GetFlavorColor(spiritFlavours[i]);
+                        row.transform.GetChild(0).GetComponent<TMP_Text>().text = (rowIndex + 1).ToString();
+                        row.transform.GetChild(1).GetComponent<TMP_Text>().text = username;
+
+                        int[] flavours = new int[] { spirit1Flavours, spirit2Flavours, spirit3Flavours, spirit4Flavours, spirit5Flavours };
+                        for (int i = 0; i < flavours.Length; i++)
+                        {
+                            Transform flavourTransform = row.transform.GetChild(2 + i);
+                            if (flavourTransform != null)
+                            {
+                                flavourTransform.GetComponent<Image>().color = GetFlavorColor(flavours[i]);
+                                TMP_Text flavourText = flavourTransform.GetChild(0).GetComponent<TMP_Text>();
+                                if (flavourText != null)
+                                {
+                                    flavourText.text = flavours[i].ToString();
+                                }
+                            }
+                        }
+
+                        Transform starRating = row.transform.GetChild(7);
+                        if (starRating != null)
+                        {
+                            for (int i = 0; i < 5; i++)
+                            {
+                                starRating.GetChild(i).gameObject.SetActive(i < overallRating);
+                            }
+                        }
+
+                        totalRatings[0] += reader.IsDBNull(reader.GetOrdinal("Spirit1Ratings")) ? 0 : reader.GetDecimal("Spirit1Ratings");
+                        totalRatings[1] += reader.IsDBNull(reader.GetOrdinal("Spirit2Ratings")) ? 0 : reader.GetDecimal("Spirit2Ratings");
+                        totalRatings[2] += reader.IsDBNull(reader.GetOrdinal("Spirit3Ratings")) ? 0 : reader.GetDecimal("Spirit3Ratings");
+                        totalRatings[3] += reader.IsDBNull(reader.GetOrdinal("Spirit4Ratings")) ? 0 : reader.GetDecimal("Spirit4Ratings");
+                        totalRatings[4] += reader.IsDBNull(reader.GetOrdinal("Spirit5Ratings")) ? 0 : reader.GetDecimal("Spirit5Ratings");
+
+                        totalFlavours[0] += spirit1Flavours;
+                        totalFlavours[1] += spirit2Flavours;
+                        totalFlavours[2] += spirit3Flavours;
+                        totalFlavours[3] += spirit4Flavours;
+                        totalFlavours[4] += spirit5Flavours;
+
+                        recordCount++;
+                        rowIndex++;
                     }
-
-                    // Update rating stars
-                    Transform ratingTransform = row.GetChild(6);
-                    for (int i = 0; i < ratingTransform.childCount; i++)
-                    {
-                        ratingTransform.GetChild(i).gameObject.SetActive(i < overallRating);
-                    }
-
-                    totalRatings[0] += reader.IsDBNull(reader.GetOrdinal("Spirit1Ratings")) ? 0 : reader.GetDecimal("Spirit1Ratings");
-                    totalRatings[1] += reader.IsDBNull(reader.GetOrdinal("Spirit2Ratings")) ? 0 : reader.GetDecimal("Spirit2Ratings");
-                    totalRatings[2] += reader.IsDBNull(reader.GetOrdinal("Spirit3Ratings")) ? 0 : reader.GetDecimal("Spirit3Ratings");
-                    totalRatings[3] += reader.IsDBNull(reader.GetOrdinal("Spirit4Ratings")) ? 0 : reader.GetDecimal("Spirit4Ratings");
-                    totalRatings[4] += reader.IsDBNull(reader.GetOrdinal("Spirit5Ratings")) ? 0 : reader.GetDecimal("Spirit5Ratings");
-
-                    totalFlavours[0] += spirit1Flavours;
-                    totalFlavours[1] += spirit2Flavours;
-                    totalFlavours[2] += spirit3Flavours;
-                    totalFlavours[3] += spirit4Flavours;
-                    totalFlavours[4] += spirit5Flavours;
-
-                    recordCount++;
-                    rowIndex++;
                 }
 
                 decimal[] averageRatings = new decimal[5];
@@ -429,6 +492,7 @@ public class SpiritManager : MonoBehaviour
             }
         }
     }
+
 
     // Methods to get data for the radar chart
     public float GetLocalDataRating(int index)

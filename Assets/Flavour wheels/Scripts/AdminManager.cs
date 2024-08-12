@@ -4,27 +4,25 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 
-
-
-
-
 public class AdminManager : MonoBehaviour
 {
-    [SerializeField] private TMP_Dropdown drinkCategoryDropdown; // Dropdown for drink categories
-    [SerializeField] private List<TMP_InputField> spiritInputFields; // List of input fields for spirits
-    [SerializeField] private TMP_InputField passkeyInputField; // Input field for displaying the passkey
-    [SerializeField] private Button generateKeyButton; // Button to generate the passkey
-    [SerializeField] private GameObject signinPage; // Sign-in page GameObject
-    [SerializeField] private UserInputManager userInputManager; // User input manager
+    [SerializeField] private TMP_Dropdown drinkCategoryDropdown;
+    [SerializeField] private List<TMP_InputField> spiritInputFields;
+    [SerializeField] private TMP_InputField passkeyInputField;
+    [SerializeField] private Button generateKeyButton;
+    [SerializeField] private GameObject signinPage;
+    [SerializeField] private UserInputManager userInputManager;
+
     public enum User
     {
         Admin,
         Player
     }
-    public User currentUser = User.Admin; // Default user type
-    private string selectedDrinkCategory; // Selected drink category
-    private List<string> spiritNames = new List<string>(); // List to store spirit names
-    private string passkey; // Generated passkey
+    public User currentUser = User.Admin;
+
+    private string selectedDrinkCategory;
+    private List<string> spiritNames = new List<string>();
+    private string passkey;
 
     private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
 
@@ -43,17 +41,58 @@ public class AdminManager : MonoBehaviour
             userInputManager.enabled = false;
         }
 
-        // Add a listener to the dropdown
         drinkCategoryDropdown.onValueChanged.AddListener(delegate { OnDrinkCategoryChanged(); });
-
-        // Add a listener to the generate key button
         generateKeyButton.onClick.AddListener(GeneratePasskey);
+
+        LoadPlayerPrefs();
+    }
+
+    private void LoadPlayerPrefs()
+    {
+        // Load drink category
+        selectedDrinkCategory = PlayerPrefs.GetString("DrinkCategory", "BOURBON");
+        int categoryIndex = drinkCategoryDropdown.options.FindIndex(option => option.text == selectedDrinkCategory);
+        if (categoryIndex != -1)
+        {
+            drinkCategoryDropdown.value = categoryIndex;
+        }
+        else
+        {
+            SetDefaultDrinkCategory();
+        }
+
+        // Load spirits
+        for (int i = 0; i < spiritInputFields.Count; i++)
+        {
+            string spirit = PlayerPrefs.GetString($"Spirit{i + 1}", "");
+            spiritInputFields[i].text = spirit;
+        }
+
+        OnDrinkCategoryChanged();
+    }
+
+    private void SetDefaultDrinkCategory()
+    {
+        int bourbonIndex = drinkCategoryDropdown.options.FindIndex(option => option.text == "BOURBON");
+
+        if (bourbonIndex != -1)
+        {
+            drinkCategoryDropdown.value = bourbonIndex;
+            OnDrinkCategoryChanged();
+        }
+        else
+        {
+            Debug.LogWarning("BOURBON option not found in the dropdown. Please add it in the Unity Inspector.");
+        }
     }
 
     private void OnDrinkCategoryChanged()
     {
         selectedDrinkCategory = drinkCategoryDropdown.options[drinkCategoryDropdown.value].text;
-        Debug.Log($"Selected Drink Category: {selectedDrinkCategory}");
+        if (string.IsNullOrEmpty(selectedDrinkCategory))
+        {
+            selectedDrinkCategory = "BOURBON";
+        }
     }
 
     private void GetSpiritNames()
@@ -77,8 +116,22 @@ public class AdminManager : MonoBehaviour
         passkeyInputField.text = passkey;
         Debug.Log($"Generated Passkey: {passkey}");
 
-        // Save the data to the database
+        SavePlayerPrefs();
         SaveDataToDatabase();
+    }
+
+    private void SavePlayerPrefs()
+    {
+        // Save drink category
+        PlayerPrefs.SetString("DrinkCategory", selectedDrinkCategory);
+
+        // Save spirits
+        for (int i = 0; i < spiritNames.Count; i++)
+        {
+            PlayerPrefs.SetString($"Spirit{i + 1}", spiritNames[i]);
+        }
+
+        PlayerPrefs.Save();
     }
 
     private string GenerateRandomAlphanumericString(int length)
@@ -103,12 +156,10 @@ public class AdminManager : MonoBehaviour
             {
                 conn.Open();
 
-                // Delete existing record
                 string deleteQuery = "DELETE FROM AdminServer;";
                 MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn);
                 deleteCmd.ExecuteNonQuery();
 
-                // Insert new data
                 string insertQuery = $"INSERT INTO AdminServer (DrinkCategory, Spirit1, Spirit2, Spirit3, Spirit4, Spirit5, PasscodeKey) " +
                                      $"VALUES ('{selectedDrinkCategory}', '{spiritNames[0]}', '{spiritNames[1]}', '{spiritNames[2]}', '{spiritNames[3]}', '{spiritNames[4]}', '{passkey}');";
 
