@@ -236,32 +236,32 @@ public class SpiritManager : MonoBehaviour
     }
 
     private void UpdateGeneralTopThree()
+{
+    Transform ranksTransform = FlavourTable2.GetChild(5);
+    Text[] generalTopThreeTexts = new Text[3];
+
+    for (int i = 0; i < 3; i++)
     {
-        Transform ranksTransform = FlavourTable2.GetChild(5);
-        TMP_Text[] generalTopThreeTexts = new TMP_Text[3];
+        generalTopThreeTexts[i] = generalTopThree.GetChild(i).GetComponent<Text>();
+    }
 
-        for (int i = 0; i < 3; i++)
+    for (int i = 0; i < ranksTransform.childCount; i++)
+    {
+        string rankText = ranksTransform.GetChild(i).GetComponent<TMP_Text>().text;
+        if (rankText == "1st")
         {
-            generalTopThreeTexts[i] = generalTopThree.GetChild(i).GetComponent<TMP_Text>();
+            generalTopThreeTexts[0].text = spiritNames[i];
         }
-
-        for (int i = 0; i < ranksTransform.childCount; i++)
+        else if (rankText == "2nd")
         {
-            string rankText = ranksTransform.GetChild(i).GetComponent<TMP_Text>().text;
-            if (rankText == "1st")
-            {
-                generalTopThreeTexts[0].text = spiritNames[i];
-            }
-            else if (rankText == "2nd")
-            {
-                generalTopThreeTexts[1].text = spiritNames[i];
-            }
-            else if (rankText == "3rd")
-            {
-                generalTopThreeTexts[2].text = spiritNames[i];
-            }
+            generalTopThreeTexts[1].text = spiritNames[i];
+        }
+        else if (rankText == "3rd")
+        {
+            generalTopThreeTexts[2].text = spiritNames[i];
         }
     }
+}
 
     private string GetRankString(int rank)
     {
