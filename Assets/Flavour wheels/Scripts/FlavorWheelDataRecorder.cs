@@ -21,7 +21,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     [SerializeField] private AudioClip ratingSound; // Audio clip for rating button click
 
     private SpiritManager spiritManager; // Reference to SpiritManager
-    [SerializeField] private SelectionManager selectionManager; // Reference to SelectionManager
 
     void Start()
     {
@@ -107,12 +106,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         selectedFlavors.Add((imageName, parentName));
         UpdateNamesDisplay();
         UpdateSpiritManager();
-
-        // Call Select on SelectionManager
-        if (selectionManager != null)
-        {
-            selectionManager.Select();
-        }
     }
 
     public void UnrecordFlavor(string imageName, string parentName, bool removeParent)
@@ -121,12 +114,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         selectedFlavors.RemoveAll(f => f.imageName == imageName && f.parentName == parentName);
         UpdateNamesDisplay();
         UpdateSpiritManager();
-
-        // Call Unselect on SelectionManager
-        if (selectionManager != null)
-        {
-            selectionManager.Unselect();
-        }
     }
 
     public void Rate(int rating)

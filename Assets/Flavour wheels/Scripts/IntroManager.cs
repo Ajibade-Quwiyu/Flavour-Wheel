@@ -7,104 +7,73 @@ public class IntroManager : MonoBehaviour
 {
     public VideoClip introVideo;
     public GameObject GameStart;
-    public GameObject NotConnected;
     public GameObject ReloadButton;
-    public GameObject SkipVideoButton;
+    public GameObject[] Others;
 
     private VideoPlayer videoPlayer;
-    private bool isCheckingConnection = false;
-    private bool shouldPlayVideo = true;
+    private static bool shouldPlayVideoOnReload = true; // Static variable
 
     void Awake()
     {
+        SetActiveForOthers(false);
         videoPlayer = gameObject.GetComponent<VideoPlayer>();
         videoPlayer.clip = introVideo;
 
-        if (shouldPlayVideo)
-        {
-            PlayVideo();
-        }
-        else
-        {
-            CheckInternetConnection();
-        }
+        // Set 'Others' GameObjects active at the start
+        SetActiveForOthers(true);
+
+        // Start playing the video immediately since we are not checking the connection
+        PlayVideo();
     }
 
     void PlayVideo()
     {
-        videoPlayer.Play();
-        SkipVideoButton.SetActive(true);
-        StartCoroutine(WaitForVideoToEnd());
-    }
-
-    IEnumerator WaitForVideoToEnd()
-    {
-        yield return new WaitForSeconds((float)introVideo.length);
-        VideoEnded();
-    }
-
-    void VideoEnded()
-    {
-        SkipVideoButton.SetActive(false);
-        CheckInternetConnection();
-    }
-
-    void CheckInternetConnection()
-    {
-        if (Application.internetReachability != NetworkReachability.NotReachable)
+        if (shouldPlayVideoOnReload)
         {
-            EnableGameStart();
+            // Set 'Others' GameObjects inactive while the video is playing
+            SetActiveForOthers(false);
+            
+            videoPlayer.Play();
+            StartCoroutine(PrepareGameStart());
         }
-        else
-        {
-            EnableNotConnected();
-            if (!isCheckingConnection)
-            {
-                StartCoroutine(CheckConnectionPeriodically());
-            }
-        }
+    }
+
+    IEnumerator PrepareGameStart()
+    {
+        // Wait until 5 seconds before the video ends
+        yield return new WaitForSeconds((float)introVideo.length - 1f);
+
+        // Enable game components
+        EnableGameStart();
+
+        // Wait for the video to finish
+        yield return new WaitForSeconds(1f);
+
+        // Disable the video player and this script
+        videoPlayer.gameObject.SetActive(false);
+        this.enabled = false;
+
+        // Turn 'Others' GameObjects back on
+        SetActiveForOthers(true);
     }
 
     void EnableGameStart()
     {
         GameStart.SetActive(true);
-        NotConnected.SetActive(false);
         ReloadButton.SetActive(false);
-        SkipVideoButton.SetActive(false);
-        isCheckingConnection = false;
-        this.gameObject.SetActive(false);
-        enabled = false; // Disable this script
     }
 
-    void EnableNotConnected()
+    void SetActiveForOthers(bool isActive)
     {
-        GameStart.SetActive(false);
-        NotConnected.SetActive(true);
-        ReloadButton.SetActive(true);
-        SkipVideoButton.SetActive(false);
-    }
-
-    IEnumerator CheckConnectionPeriodically()
-    {
-        isCheckingConnection = true;
-        while (Application.internetReachability == NetworkReachability.NotReachable)
+        foreach (GameObject obj in Others)
         {
-            yield return new WaitForSeconds(1f);
+            obj.SetActive(isActive);
         }
-        EnableGameStart();
     }
 
-    public void ReloadScene()
+    public void ReloadSceneWithoutPlayingVideo()
     {
-        ReloadButton.SetActive(false);
-        shouldPlayVideo = false;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
-    public void SkipVideo()
-    {
-        StopCoroutine(WaitForVideoToEnd());
-        videoPlayer.Stop();
-        VideoEnded();
+        shouldPlayVideoOnReload = false;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

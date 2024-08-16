@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
+using System.Collections;
 
 public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 {
@@ -30,7 +31,6 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         if (!isSwiping)
         {
-            // Check if the swipe started in the bottom quarter of the screen
             if (eventData.pressPosition.y <= Screen.height / 4)
             {
                 startPosition = eventData.pressPosition;
@@ -68,8 +68,9 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
             }
             else if (distance > 0 && currentPointerIndex == pointerGraphics.Length - 1)
             {
-                // Last panel swiped to the right
-                onLastImageSwiped?.Invoke();
+                // Start a coroutine to handle the transition and event invocation
+                StartCoroutine(HandleLastImageSwipe());
+                return; // Exit the method here to avoid immediate pointer graphics update
             }
             else if (distance < 0 && currentPointerIndex > 0)
             {
@@ -81,15 +82,21 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         ResetPointerPositions();
     }
 
-    private bool IsSwipeValid(PointerEventData eventData)
+    private IEnumerator HandleLastImageSwipe()
     {
-        // Add your logic to determine if the swipe is valid
-        return true;
+        UpdateMainPanel();
+        UpdatePointerGraphics();
+        ResetPointerPositions();
+
+        // Wait until the transition is complete
+        yield return new WaitForSeconds(1 / transitionSpeed);
+
+        // Invoke the event after the transition
+        onLastImageSwiped?.Invoke();
     }
 
     private void UpdatePanelPositions()
     {
-        // Ensure the main panels are set correctly based on the currentMainPanelIndex
         for (int i = 0; i < mainPanels.Length; i++)
         {
             if (i == currentMainPanelIndex)
@@ -106,28 +113,25 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 
     private void UpdatePointerGraphics()
     {
-        // Update the pointer graphics to show only 3 at a time
         for (int i = 0; i < pointerGraphics.Length; i++)
         {
             pointerGraphics[i].gameObject.SetActive(i >= currentPointerIndex - 1 && i <= currentPointerIndex + 1);
             CanvasGroup canvasGroup = pointerGraphics[i].GetComponent<CanvasGroup>();
             if (canvasGroup != null)
             {
-                canvasGroup.alpha = i == currentPointerIndex ? 1f : 0.5f; // Active one is fully visible, others are grayed out
+                canvasGroup.alpha = i == currentPointerIndex ? 1f : 0.5f;
             }
         }
     }
 
     private void UpdateMainPanel()
     {
-        // Update the main panel based on the active pointer
         currentMainPanelIndex = currentPointerIndex;
         UpdatePanelPositions();
     }
 
     private void ResetPointerPositions()
     {
-        // Reset the positions of the pointer graphics to their original positions
         for (int i = 0; i < pointerGraphics.Length; i++)
         {
             pointerGraphics[i].anchoredPosition = new Vector2((i - currentPointerIndex) * Screen.width / 3, pointerGraphics[i].anchoredPosition.y);
@@ -136,7 +140,6 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 
     private void EnsureCanvasGroupComponents()
     {
-        // Ensure each pointer graphic has a CanvasGroup component
         foreach (RectTransform pointer in pointerGraphics)
         {
             if (pointer.GetComponent<CanvasGroup>() == null)
@@ -146,7 +149,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         }
     }
 
-    private System.Collections.IEnumerator MovePanel(RectTransform panel, Vector2 targetPosition)
+    private IEnumerator MovePanel(RectTransform panel, Vector2 targetPosition)
     {
         Vector2 initialPosition = panel.anchoredPosition;
         float elapsedTime = 0;

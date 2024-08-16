@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 [System.Serializable]
 public class ChildHierarchy
@@ -16,11 +17,67 @@ public class ChildHierarchy
 }
 
 public class FlavorWheelController : MonoBehaviour
+
 {
     private ChildHierarchy hierarchy; // Root hierarchy for images
     private Dictionary<Image, Vector3> originalScales = new Dictionary<Image, Vector3>(); // Store original scales of images
     private HashSet<Image> scaledLastHierarchyImages = new HashSet<Image>(); // Store scaled images in the last hierarchy
-    private Image currentImage = null; // Currently selected image
+    private Image currentImage = null;
+    private int currentNumber = 0;
+    public TMP_Text numberText;  // Reference to your TMP_Text component
+    public float animationDuration = 1f; // Duration of the animation
+    public float endpos = 50f; // Duration of the animation
+
+   
+
+    public void Select(int increment = 1)
+    {
+        Debug.Log("called");
+        currentNumber += increment;
+        UpdateNumberText();
+        StartCoroutine(AnimateNumber("+" + increment));
+    }
+
+    public void Unselect()
+    {
+        Debug.Log("uncalled");
+        currentNumber -= 1;
+        UpdateNumberText();
+        StartCoroutine(AnimateNumber("-1"));
+    }
+
+    private void UpdateNumberText()
+    {
+        numberText.text = currentNumber.ToString();
+    }
+
+    private IEnumerator AnimateNumber(string changeText)
+{
+    // Instantiate the duplicated TMP_Text object
+    TMP_Text changeTMP = Instantiate(numberText, numberText.transform.parent);
+
+    // Set the text of the duplicated object
+    changeTMP.text = changeText;
+
+    // Set the duplicated object to active so it can display the animation
+    changeTMP.gameObject.SetActive(true);
+
+    // Set the position of the duplicated object to match the original
+    changeTMP.transform.localPosition = numberText.transform.localPosition;
+
+    float elapsed = 0f;
+    while (elapsed < animationDuration)
+    {
+        elapsed += Time.deltaTime;
+        changeTMP.transform.localPosition = Vector3.Lerp(changeTMP.transform.localPosition, new Vector3(changeTMP.transform.localPosition.x, endpos, changeTMP.transform.localPosition.z), elapsed / animationDuration);
+        yield return null;
+    }
+
+    // Destroy the duplicated object after the animation is complete
+    Destroy(changeTMP.gameObject);
+}
+
+ // Currently selected image
     private Color darkenColor = new Color(0.35f, 0.35f, 0.35f, 1f); // Color to darken images
     private Color doubleClickColor = Color.yellow; // Color to indicate double-clicked images
 
@@ -43,7 +100,7 @@ public class FlavorWheelController : MonoBehaviour
 
         // Apply darken and disable to all children from the start
         ApplyDarkenAndDisableToHierarchy(hierarchy.children);
-
+        UpdateNumberText();
         // Get the AudioSource from the Camera
         audioSource = Camera.main.GetComponent<AudioSource>();
         if (audioSource == null)
@@ -82,35 +139,35 @@ public class FlavorWheelController : MonoBehaviour
     }
 
     // Handle single click with delay to differentiate from double-click
-    private IEnumerator HandleSingleClick(Image image)
+   private IEnumerator HandleSingleClick(Image image)
+{
+    yield return new WaitForSeconds(doubleClickTime);
+
+    if (!isDoubleClick)
     {
-        yield return new WaitForSeconds(doubleClickTime);
-
-        if (!isDoubleClick)
-        {
-            ToggleImageState(image);
-            PlayClickSound(); // Play click sound for normal clicks
-        }
+        ToggleImageState(image);
+        PlayClickSound(); // Play click sound for normal clicks
     }
-
+}
     // Handle double-click interactions
-    private void HandleDoubleClick(Image image)
+   private void HandleDoubleClick(Image image)
+{
+    if (IsGrandchild(image))
     {
-        if (IsGrandchild(image))
+        Select(2);  // Increment by 2 for double click on grandchild
+        ScaleImage(image, true); // Always scale on double click
+        ApplyDoubleClickIndicator(image); // Apply visual indicator for double-clicked images
+
+        // Record the flavor and its parent in the data recorder
+        if (dataRecorder != null)
         {
-            ScaleImage(image, true); // Always scale on double click
-            ApplyDoubleClickIndicator(image); // Apply visual indicator for double-clicked images
-
-            // Record the flavor and its parent in the data recorder
-            if (dataRecorder != null)
-            {
-                dataRecorder.RecordFlavor(image.name, image.transform.parent?.name);
-            }
-
-            PlayDoubleClickSound(); // Play double-click sound
-            Vibrate(); // Cause vibration on double click
+            dataRecorder.RecordFlavor(image.name, image.transform.parent?.name);
         }
+
+        PlayDoubleClickSound(); // Play double-click sound
+        Vibrate(); // Cause vibration on double click
     }
+}
 
     // Play click sound for normal clicks
     private void PlayClickSound()
@@ -165,58 +222,61 @@ public class FlavorWheelController : MonoBehaviour
     }
 
     // Toggle the state of an image
-    private void ToggleImageState(Image image)
+   private void ToggleImageState(Image image)
+{
+    if (image == null)
     {
-        if (image == null)
+        return;
+    }
+
+    if (image.color == doubleClickColor) // Image is currently selected, so unselect it
+    {
+        bool anySiblingSelected = false;
+        Transform parent = image.transform.parent;
+        foreach (Transform sibling in parent)
         {
-            return;
+            Image siblingImage = sibling.GetComponent<Image>();
+            if (siblingImage != image && siblingImage != null && siblingImage.color == doubleClickColor)
+            {
+                anySiblingSelected = true;
+                break;
+            }
         }
 
-        if (image.color == doubleClickColor)
+        // Determine if the parent should be removed based on siblings' selection status
+        bool removeParent = !anySiblingSelected;
+        if (dataRecorder != null)
         {
-            bool anySiblingSelected = false;
-            Transform parent = image.transform.parent;
-            foreach (Transform sibling in parent)
-            {
-                Image siblingImage = sibling.GetComponent<Image>();
-                if (siblingImage != image && siblingImage != null && siblingImage.color == doubleClickColor)
-                {
-                    anySiblingSelected = true;
-                    break;
-                }
-            }
-
-            // Determine if the parent should be removed based on siblings' selection status
-            bool removeParent = !anySiblingSelected;
-            if (dataRecorder != null)
-            {
-                dataRecorder.UnrecordFlavor(image.name, image.transform.parent?.name, removeParent);
-            }
-            RemoveDoubleClickIndicator(image);
-            ScaleImage(image, false); // Unscale on unselect
+            dataRecorder.UnrecordFlavor(image.name, image.transform.parent?.name, removeParent);
         }
-        else
+        RemoveDoubleClickIndicator(image);
+        ScaleImage(image, false); // Unscale on unselect
+        Unselect(); // Decrement the counter by 1
+    }
+    else // Image is not selected, so select it
+    {
+        var hierarchy = FindHierarchy(image);
+        if (hierarchy != null)
         {
-            var hierarchy = FindHierarchy(image);
-            if (hierarchy != null)
+            if (!IsGrandchild(image)) // If it's not a grandchild, apply selection logic to parents and children
             {
-                if (!IsGrandchild(image))
+                DisableSiblingsOfParent(image); // Disable siblings of the parent
+                EnableImage(image); // Enable itself and its children
+                foreach (var childHierarchy in hierarchy.children)
                 {
-                    DisableSiblingsOfParent(image); // Disable siblings of the parent
-                    EnableImage(image); // Enable itself and its children
-                    foreach (var childHierarchy in hierarchy.children)
-                    {
-                        EnableImage(childHierarchy.image);
-                    }
+                    EnableImage(childHierarchy.image);
                 }
-                else
-                {
-                    ScaleImage(image, false); // Handle scaling of grandchild on single click
-                    RemoveDoubleClickIndicator(image); // Remove visual indicator if previously double-clicked
-                }
+            }
+            else // If it's a grandchild, handle single selection
+            {
+                ScaleImage(image, false); // Handle scaling of grandchild on single click
+                RemoveDoubleClickIndicator(image); // Remove visual indicator if previously double-clicked
+                Select(1); // Increment the counter by 1 for single click on grandchild
             }
         }
     }
+}
+
 
     // Disable siblings of the parent image
     private void DisableSiblingsOfParent(Image image)
