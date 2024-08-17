@@ -2,7 +2,10 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using MySql.Data.MySqlClient;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using System.Linq;
 
 public class AdminManager : MonoBehaviour
 {
@@ -24,7 +27,8 @@ public class AdminManager : MonoBehaviour
     private List<string> spiritNames = new List<string>();
     private string passkey;
 
-    private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
+    private string adminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
+    private const string PasskeyPrefKey = "AdminPasskey";
 
     void Start()
     {
@@ -43,6 +47,9 @@ public class AdminManager : MonoBehaviour
 
         drinkCategoryDropdown.onValueChanged.AddListener(delegate { OnDrinkCategoryChanged(); });
         generateKeyButton.onClick.AddListener(GeneratePasskey);
+
+        // Add listener to clear passkey when dropdown is clicked
+        drinkCategoryDropdown.onValueChanged.AddListener(delegate { ClearPasskey(); });
 
         LoadPlayerPrefs();
     }
@@ -67,6 +74,10 @@ public class AdminManager : MonoBehaviour
             string spirit = PlayerPrefs.GetString($"Spirit{i + 1}", "");
             spiritInputFields[i].text = spirit;
         }
+
+        // Load passkey
+        passkey = PlayerPrefs.GetString(PasskeyPrefKey, "");
+        passkeyInputField.text = passkey;
 
         OnDrinkCategoryChanged();
     }
@@ -93,6 +104,16 @@ public class AdminManager : MonoBehaviour
         {
             selectedDrinkCategory = "BOURBON";
         }
+        Debug.Log($"Selected Drink Category: {selectedDrinkCategory}");
+    }
+
+    private void ClearPasskey()
+    {
+        passkey = "";
+        passkeyInputField.text = "";
+        PlayerPrefs.DeleteKey(PasskeyPrefKey);
+        PlayerPrefs.Save();
+        Debug.Log("Passkey cleared.");
     }
 
     private void GetSpiritNames()
@@ -109,15 +130,23 @@ public class AdminManager : MonoBehaviour
         }
     }
 
-    private void GeneratePasskey()
+    private async void GeneratePasskey()
     {
         GetSpiritNames();
+
+        // Input validation
+        if (string.IsNullOrEmpty(selectedDrinkCategory) || spiritNames.Any(string.IsNullOrEmpty))
+        {
+            Debug.LogError("Please fill in all fields before generating a passkey.");
+            return;
+        }
+
         passkey = GenerateRandomAlphanumericString(8);
         passkeyInputField.text = passkey;
         Debug.Log($"Generated Passkey: {passkey}");
-
+        generateKeyButton.interactable = false;
         SavePlayerPrefs();
-        SaveDataToDatabase();
+        await SaveDataToServer();
     }
 
     private void SavePlayerPrefs()
@@ -131,7 +160,11 @@ public class AdminManager : MonoBehaviour
             PlayerPrefs.SetString($"Spirit{i + 1}", spiritNames[i]);
         }
 
+        // Save passkey
+        PlayerPrefs.SetString(PasskeyPrefKey, passkey);
+
         PlayerPrefs.Save();
+        Debug.Log("Data saved to PlayerPrefs.");
     }
 
     private string GenerateRandomAlphanumericString(int length)
@@ -148,28 +181,74 @@ public class AdminManager : MonoBehaviour
         return new string(stringChars);
     }
 
-    private void SaveDataToDatabase()
+    private async Task SaveDataToServer()
     {
-        using (MySqlConnection conn = new MySqlConnection(connectionString))
+        var data = new AdminData
+        {
+            drinkCategory = selectedDrinkCategory,
+            spirit1 = spiritNames.Count > 0 ? spiritNames[0] : "",
+            spirit2 = spiritNames.Count > 1 ? spiritNames[1] : "",
+            spirit3 = spiritNames.Count > 2 ? spiritNames[2] : "",
+            spirit4 = spiritNames.Count > 3 ? spiritNames[3] : "",
+            spirit5 = spiritNames.Count > 4 ? spiritNames[4] : "",
+            passcodeKey = passkey
+        };
+
+        string jsonData = JsonUtility.ToJson(data);
+        Debug.Log($"Sending data to server: {jsonData}");
+
+        using (HttpClient client = new HttpClient())
         {
             try
             {
-                conn.Open();
+                // Send DELETE request to clear existing data
+                HttpResponseMessage deleteResponse = await client.DeleteAsync(adminEndpoint);
+                Debug.Log($"DELETE response: {deleteResponse.StatusCode}");
 
-                string deleteQuery = "DELETE FROM AdminServer;";
-                MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn);
-                deleteCmd.ExecuteNonQuery();
+                if (deleteResponse.IsSuccessStatusCode)
+                {
+                    Debug.Log("Existing data deleted successfully.");
+                }
+                else
+                {
+                    Debug.LogError($"Error deleting data: {deleteResponse.ReasonPhrase}");
+                }
 
-                string insertQuery = $"INSERT INTO AdminServer (DrinkCategory, Spirit1, Spirit2, Spirit3, Spirit4, Spirit5, PasscodeKey) " +
-                                     $"VALUES ('{selectedDrinkCategory}', '{spiritNames[0]}', '{spiritNames[1]}', '{spiritNames[2]}', '{spiritNames[3]}', '{spiritNames[4]}', '{passkey}');";
+                // Send POST request to save new data
+                StringContent content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                HttpResponseMessage postResponse = await client.PostAsync(adminEndpoint, content);
+                Debug.Log($"POST response: {postResponse.StatusCode}");
 
-                MySqlCommand insertCmd = new MySqlCommand(insertQuery, conn);
-                insertCmd.ExecuteNonQuery();
+                if (postResponse.IsSuccessStatusCode)
+                {
+                    string responseContent = await postResponse.Content.ReadAsStringAsync();
+                    Debug.Log($"Data successfully saved to the server. Response: {responseContent}");
+                }
+                else
+                {
+                    Debug.LogError($"Error saving data: {postResponse.ReasonPhrase}");
+                }
             }
-            catch (MySqlException e)
+            catch (HttpRequestException e)
             {
-                Debug.LogError($"Error saving data: {e.Message}");
+                Debug.LogError($"Request error: {e.Message}");
+            }
+            finally
+            {
+                generateKeyButton.interactable = true;
             }
         }
+    }
+
+    [System.Serializable]
+    private class AdminData
+    {
+        public string drinkCategory;
+        public string spirit1;
+        public string spirit2;
+        public string spirit3;
+        public string spirit4;
+        public string spirit5;
+        public string passcodeKey;
     }
 }

@@ -1,20 +1,30 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MySql.Data.MySqlClient;
+using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 public class UserInputManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class SpiritTextFieldSet
+    {
+        public Text spirit1Text;
+        public Text spirit2Text;
+        public Text spirit3Text;
+        public Text spirit4Text;
+        public Text spirit5Text;
+    }
+
     public TMP_InputField usernameInputField;
     public TMP_InputField emailInputField;
     public TMP_InputField passcodeKeyInputField;
     public TMP_InputField overallExperienceInputField;
     public Transform overallRatingTransform;
     public Button submitButton;
-    public List<Text> spiritTextFields;
+    public List<SpiritTextFieldSet> spiritTextFieldSets;
     public Text drinkCategoryText;
     public GameObject signInPage;
     public GameObject gamePanel;
@@ -24,7 +34,6 @@ public class UserInputManager : MonoBehaviour
     public List<Transform> drinkCategoryTransforms;
 
     private GameObject incorrectPasscodeIndicator;
-    private string connectionString = "Server=sql8.freesqldatabase.com; Database=sql8721580; User=sql8721580; Password=6wdc5VDnaQ; Charset=utf8;";
     private int overallRating = 0;
     private List<Button> ratingButtons = new List<Button>();
     private AudioSource audioSource;
@@ -32,7 +41,7 @@ public class UserInputManager : MonoBehaviour
 
     private const string UsernameKey = "PlayerUsername";
     private const string EmailKey = "PlayerEmail";
-    
+    private string adminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
 
     void Start()
     {
@@ -66,10 +75,30 @@ public class UserInputManager : MonoBehaviour
         }
 
         LoadUserData();
-        
         SetupParticles();
+        ValidateSpiritTextFieldSets();
+    }
 
-        StartCoroutine(CheckForUpdates());
+    private void ValidateSpiritTextFieldSets()
+    {
+        if (spiritTextFieldSets == null)
+        {
+            spiritTextFieldSets = new List<SpiritTextFieldSet>();
+        }
+
+        for (int i = 0; i < spiritTextFieldSets.Count; i++)
+        {
+            SpiritTextFieldSet set = spiritTextFieldSets[i];
+            if (set == null || set.spirit1Text == null || set.spirit2Text == null ||
+                set.spirit3Text == null || set.spirit4Text == null || set.spirit5Text == null)
+            {
+                Debug.LogWarning($"Spirit text field set {i} is invalid. Removing from the list.");
+                spiritTextFieldSets.RemoveAt(i);
+                i--; // Adjust index after removal
+            }
+        }
+
+        Debug.Log($"Validated {spiritTextFieldSets.Count} spirit text field sets");
     }
 
     private void SetupParticles()
@@ -84,7 +113,6 @@ public class UserInputManager : MonoBehaviour
             particle.gameObject.SetActive(false);
         }
 
-        // Disable all drink category transforms at start
         foreach (var transform in drinkCategoryTransforms)
         {
             if (transform != null)
@@ -118,64 +146,47 @@ public class UserInputManager : MonoBehaviour
         submitButton.interactable = !string.IsNullOrEmpty(usernameInputField.text) && !string.IsNullOrEmpty(passcodeKeyInputField.text);
     }
 
-   public void OnSubmitButtonClicked()
-{
-    string enteredPasscodeKey = passcodeKeyInputField.text;
-    AdminData adminData = null;
-
-    try
+    public void OnSubmitButtonClicked()
     {
-        adminData = GetAdminDataFromDatabase();
+        string enteredPasscodeKey = passcodeKeyInputField.text.Trim();
+        string username = usernameInputField.text.Trim();
+        string email = emailInputField.text.Trim();
 
-        // Check for a null result, which might indicate a failed database query
-        if (adminData == null)
+        Debug.Log($"Entered Passcode: '{enteredPasscodeKey}'");
+
+        StartCoroutine(GetAdminData((adminData) =>
         {
-            // If adminData is null, it could be a network issue or another error
-            DisplayIncorrectPasscodeMessage("No Connections");
-            return;
-        }
+            Debug.Log("waiting");
+            if (adminData == null)
+            {
+                DisplayIncorrectPasscodeMessage("Unable to verify passcode. Please try again later.");
+                return;
+            }
+
+            string expectedPasscodeKey = adminData.passcodeKey.Trim();
+            Debug.Log($"Expected Passcode: '{expectedPasscodeKey}'");
+
+            if (expectedPasscodeKey.Equals(enteredPasscodeKey, System.StringComparison.OrdinalIgnoreCase))
+            {
+                SaveUserData();
+                UpdateUI(adminData);
+                incorrectPasscodeIndicator.gameObject.SetActive(false);
+                signInPage.SetActive(false);
+                gamePanel.SetActive(true);
+                PlayParticleEffects();
+            }
+            else
+            {
+                DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
+            }
+        }));
     }
-    catch (MySqlException e)
+
+    private void DisplayIncorrectPasscodeMessage(string message)
     {
-        // Handle specific network-related errors
-        if (e.Number == 0) // 0 is the common error code for network-related MySQL exceptions
-        {
-            DisplayIncorrectPasscodeMessage("No Connections");
-        }
-        else
-        {
-            // Log the error for other types of MySQL exceptions
-            Debug.LogError($"Error retrieving data: {e.Message}");
-            DisplayIncorrectPasscodeMessage("An unexpected error occurred.");
-        }
-        return;
+        incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
+        incorrectPasscodeIndicator.SetActive(true);
     }
-
-    // Check if the passcode is correct after a successful database connection
-    if (adminData.PasscodeKey == enteredPasscodeKey)
-    {
-        UpdateUI(adminData);
-        incorrectPasscodeIndicator.gameObject.SetActive(false);
-
-        SaveUserData();
-        
-        PlayParticleEffects();
-
-        signInPage.SetActive(false);
-        gamePanel.SetActive(true);
-    }
-    else
-    {
-        DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
-    }
-}
-
-private void DisplayIncorrectPasscodeMessage(string message)
-{
-    incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
-    incorrectPasscodeIndicator.SetActive(true);
-}
-
 
     private void PlayParticleEffects()
     {
@@ -253,69 +264,56 @@ private void DisplayIncorrectPasscodeMessage(string message)
         }
     }
 
-    private AdminData GetAdminDataFromDatabase()
-{
-    AdminData adminData = null;
-
-    using (MySqlConnection conn = new MySqlConnection(connectionString))
+    private IEnumerator GetAdminData(System.Action<AdminData> callback)
     {
-        try
+        using (UnityWebRequest request = UnityWebRequest.Get(adminEndpoint))
         {
-            conn.Open();
+            yield return request.SendWebRequest();
 
-            string query = "SELECT * FROM AdminServer LIMIT 1;";
-            MySqlCommand cmd = new MySqlCommand(query, conn);
-            MySqlDataReader reader = cmd.ExecuteReader();
+            Debug.Log($"Response Code: {request.responseCode}");
+            Debug.Log($"Raw response: {request.downloadHandler.text}");
 
-            if (reader.Read())
+            if (request.result == UnityWebRequest.Result.Success)
             {
-                adminData = new AdminData
+                string json = request.downloadHandler.text;
+                Debug.Log("Raw JSON response: " + json);
+
+                AdminData adminData = AdminData.ParseJson(json);
+
+                if (adminData != null && !string.IsNullOrEmpty(adminData.drinkCategory))
                 {
-                    DrinkCategory = reader.GetString("DrinkCategory"),
-                    Spirit1 = reader.GetString("Spirit1"),
-                    Spirit2 = reader.GetString("Spirit2"),
-                    Spirit3 = reader.GetString("Spirit3"),
-                    Spirit4 = reader.GetString("Spirit4"),
-                    Spirit5 = reader.GetString("Spirit5"),
-                    PasscodeKey = reader.GetString("PasscodeKey")
-                };
+                    Debug.Log($"Deserialized AdminData: DrinkCategory={adminData.drinkCategory}, PasscodeKey={adminData.passcodeKey}");
+                    callback(adminData);
+                }
+                else
+                {
+                    Debug.LogWarning("No valid admin data received from the server.");
+                    callback(null);
+                }
             }
-        }
-        catch (MySqlException e)
-        {
-            // Log the error to the console
-            Debug.LogError($"Error retrieving data: {e.Message}");
-
-        }
-    }
-
-    return adminData;
-}
-
-
-    private IEnumerator CheckForUpdates()
-    {
-        while (true)
-        {
-            AdminData newData = GetAdminDataFromDatabase();
-            if (newData != null)
+            else
             {
-                UpdateUI(newData);
+                Debug.LogError($"Error retrieving admin data: {request.error}");
+                callback(null);
             }
-            yield return new WaitForSeconds(60); // Check every minute
         }
     }
 
     private void UpdateUI(AdminData data)
     {
-        drinkCategoryText.text = data.DrinkCategory + " WHEEL";
-        spiritTextFields[0].text = data.Spirit1;
-        spiritTextFields[1].text = data.Spirit2;
-        spiritTextFields[2].text = data.Spirit3;
-        spiritTextFields[3].text = data.Spirit4;
-        spiritTextFields[4].text = data.Spirit5;
+        drinkCategoryText.text = data.drinkCategory + " WHEEL";
 
-        // Disable all drink category transforms
+        // Update all sets of spirit text fields
+        foreach (SpiritTextFieldSet textFieldSet in spiritTextFieldSets)
+        {
+            if (textFieldSet.spirit1Text != null) textFieldSet.spirit1Text.text = data.spirit1;
+            if (textFieldSet.spirit2Text != null) textFieldSet.spirit2Text.text = data.spirit2;
+            if (textFieldSet.spirit3Text != null) textFieldSet.spirit3Text.text = data.spirit3;
+            if (textFieldSet.spirit4Text != null) textFieldSet.spirit4Text.text = data.spirit4;
+            if (textFieldSet.spirit5Text != null) textFieldSet.spirit5Text.text = data.spirit5;
+        }
+
+        // Deactivate all drink category transforms
         foreach (var transform in drinkCategoryTransforms)
         {
             if (transform != null)
@@ -324,26 +322,84 @@ private void DisplayIncorrectPasscodeMessage(string message)
             }
         }
 
-        // Enable the matching drink category transform
-        Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.DrinkCategory, System.StringComparison.OrdinalIgnoreCase));
+        // Activate the matching drink category transform
+        Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.drinkCategory, System.StringComparison.OrdinalIgnoreCase));
         if (matchingTransform != null)
         {
             matchingTransform.gameObject.SetActive(true);
         }
         else
         {
-            Debug.LogWarning($"No matching transform found for drink category: {data.DrinkCategory}");
+            Debug.LogWarning($"No matching transform found for drink category: {data.drinkCategory}");
         }
     }
 
+    [System.Serializable]
     public class AdminData
     {
-        public string DrinkCategory { get; set; }
-        public string Spirit1 { get; set; }
-        public string Spirit2 { get; set; }
-        public string Spirit3 { get; set; }
-        public string Spirit4 { get; set; }
-        public string Spirit5 { get; set; }
-        public string PasscodeKey { get; set; }
+        public int id;
+        public string drinkCategory;
+        public string spirit1;
+        public string spirit2;
+        public string spirit3;
+        public string spirit4;
+        public string spirit5;
+        public string passcodeKey;
+
+        [System.Serializable]
+        private class AdminDataWrapper
+        {
+            public AdminData[] data;
+        }
+
+        public static AdminData ParseJson(string json)
+        {
+            try
+            {
+                // Check if the JSON is an empty array
+                if (json == "[]")
+                {
+                    Debug.LogWarning("Received an empty array from the server.");
+                    return null;
+                }
+
+                // Check if the JSON is an array
+                if (json.StartsWith("[") && json.EndsWith("]"))
+                {
+                    // Wrap the array in an object
+                    json = "{\"data\":" + json + "}";
+                    AdminDataWrapper wrapper = JsonUtility.FromJson<AdminDataWrapper>(json);
+                    if (wrapper != null && wrapper.data != null && wrapper.data.Length > 0)
+                    {
+                        return wrapper.data[0];
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Parsed array is empty or null.");
+                        return null;
+                    }
+                }
+                else
+                {
+                    // Try parsing as a single object
+                    AdminData adminData = JsonUtility.FromJson<AdminData>(json);
+                    if (adminData != null && !string.IsNullOrEmpty(adminData.drinkCategory))
+                    {
+                        return adminData;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Parsed object is null or invalid.");
+                        return null;
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Error parsing JSON: {e.Message}");
+                Debug.LogError($"JSON content: {json}");
+                return null;
+            }
+        }
     }
 }

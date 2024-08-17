@@ -60,10 +60,8 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.4f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Flavour wheels\Scripts\FlavourWheelAPI.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\AdminManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UIToggleState.cs" />
-    <Compile Include="Assets\Flavour wheels\Scripts\DataGetter.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelDataRecorder.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\RotationAndZoomController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UserInputManager.cs" />
@@ -942,12 +940,12 @@
       <HintPath>Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityUIExtensions">
-      <HintPath>Library\ScriptAssemblies\UnityUIExtensions.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityUIExtensions">
+      <HintPath>Library\ScriptAssemblies\UnityUIExtensions.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
