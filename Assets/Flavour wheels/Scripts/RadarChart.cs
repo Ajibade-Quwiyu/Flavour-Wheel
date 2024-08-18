@@ -14,7 +14,7 @@ public class RadarChart : MonoBehaviour
         Neutral // Added Neutral data type
     }
 
-    public SpiritManager spiritManager;
+    public UIManager uIManager;
     public DataType selectedDataType;
 
     public float spirit1;
@@ -74,32 +74,32 @@ public class RadarChart : MonoBehaviour
         switch (dataType)
         {
             case DataType.MyThink:
-                values.Add(spiritManager.GetLocalDataRating(0));
-                values.Add(spiritManager.GetLocalDataRating(1));
-                values.Add(spiritManager.GetLocalDataRating(2));
-                values.Add(spiritManager.GetLocalDataRating(3));
-                values.Add(spiritManager.GetLocalDataRating(4));
+                values.Add(uIManager.GetLocalDataRating(0));
+                values.Add(uIManager.GetLocalDataRating(1));
+                values.Add(uIManager.GetLocalDataRating(2));
+                values.Add(uIManager.GetLocalDataRating(3));
+                values.Add(uIManager.GetLocalDataRating(4));
                 break;
             case DataType.MyDetects:
-                values.Add(spiritManager.GetLocalDataFlavour(0));
-                values.Add(spiritManager.GetLocalDataFlavour(1));
-                values.Add(spiritManager.GetLocalDataFlavour(2));
-                values.Add(spiritManager.GetLocalDataFlavour(3));
-                values.Add(spiritManager.GetLocalDataFlavour(4));
+                values.Add(uIManager.GetLocalDataFlavour(0));
+                values.Add(uIManager.GetLocalDataFlavour(1));
+                values.Add(uIManager.GetLocalDataFlavour(2));
+                values.Add(uIManager.GetLocalDataFlavour(3));
+                values.Add(uIManager.GetLocalDataFlavour(4));
                 break;
             case DataType.OtherThinks:
-                values.Add(spiritManager.GetAverageRating(0));
-                values.Add(spiritManager.GetAverageRating(1));
-                values.Add(spiritManager.GetAverageRating(2));
-                values.Add(spiritManager.GetAverageRating(3));
-                values.Add(spiritManager.GetAverageRating(4));
+                values.Add(uIManager.GetAverageRating(0));
+                values.Add(uIManager.GetAverageRating(1));
+                values.Add(uIManager.GetAverageRating(2));
+                values.Add(uIManager.GetAverageRating(3));
+                values.Add(uIManager.GetAverageRating(4));
                 break;
             case DataType.OtherDetects:
-                values.Add(spiritManager.GetAverageFlavour(0));
-                values.Add(spiritManager.GetAverageFlavour(1));
-                values.Add(spiritManager.GetAverageFlavour(2));
-                values.Add(spiritManager.GetAverageFlavour(3));
-                values.Add(spiritManager.GetAverageFlavour(4));
+                values.Add(uIManager.GetAverageFlavour(0));
+                values.Add(uIManager.GetAverageFlavour(1));
+                values.Add(uIManager.GetAverageFlavour(2));
+                values.Add(uIManager.GetAverageFlavour(3));
+                values.Add(uIManager.GetAverageFlavour(4));
                 break;
             case DataType.Neutral:
                 values.Add(1f); // Neutral values set to 1
