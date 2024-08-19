@@ -29,6 +29,9 @@ public class UserInputManager : MonoBehaviour
     public Text drinkCategoryText;
     public GameObject signInPage;
     public GameObject gamePanel;
+    public GameObject loadingPanel;
+    private const int maxRetries = 3;
+    private const float retryDelay = 2f;
     public SpiritManager spiritManager;
     public AudioClip ratingSound;
     public float particlesDuration = 5f;
@@ -155,15 +158,45 @@ public class UserInputManager : MonoBehaviour
 
         Debug.Log($"Entered Passcode: '{enteredPasscodeKey}'");
 
-        StartCoroutine(GetAdminData((adminData) =>
-        {
-            Debug.Log("waiting");
-            if (adminData == null)
-            {
-                DisplayIncorrectPasscodeMessage("Unable to verify passcode. Please try again later.");
-                return;
-            }
+        signInPage.SetActive(false);
+        loadingPanel.SetActive(true);
 
+        StartCoroutine(GetAdminDataWithRetry(enteredPasscodeKey, 0));
+    }
+    private IEnumerator GetAdminDataWithRetry(string enteredPasscodeKey, int retryCount)
+    {
+        bool isConnected = false;
+        AdminData adminData = null;
+
+        while (!isConnected && retryCount < maxRetries)
+        {
+            yield return StartCoroutine(GetAdminData((data) =>
+            {
+                adminData = data;
+                isConnected = (data != null);
+            }));
+
+            if (!isConnected)
+            {
+                retryCount++;
+                if (retryCount < maxRetries)
+                {
+                    Debug.Log($"Connection attempt failed. Retrying in {retryDelay} seconds...");
+                    yield return new WaitForSeconds(retryDelay);
+                }
+            }
+        }
+
+        if (!isConnected)
+        {
+            DisplayConnectionError("No internet connection. Please check your network and try again.");
+        }
+        else if (adminData == null)
+        {
+            DisplayConnectionError("Unable to verify passcode. Please try again later.");
+        }
+        else
+        {
             string expectedPasscodeKey = adminData.passcodeKey.Trim();
             Debug.Log($"Expected Passcode: '{expectedPasscodeKey}'");
 
@@ -172,7 +205,7 @@ public class UserInputManager : MonoBehaviour
                 SaveUserData();
                 UpdateUI(adminData);
                 incorrectPasscodeIndicator.gameObject.SetActive(false);
-                signInPage.SetActive(false);
+                loadingPanel.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
             }
@@ -180,13 +213,22 @@ public class UserInputManager : MonoBehaviour
             {
                 DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
             }
-        }));
+        }
+    }
+
+      private void DisplayConnectionError(string message)
+    {
+        loadingPanel.SetActive(false);
+        signInPage.SetActive(true);
+        DisplayIncorrectPasscodeMessage(message);
     }
 
     private void DisplayIncorrectPasscodeMessage(string message)
     {
         incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
         incorrectPasscodeIndicator.SetActive(true);
+        loadingPanel.SetActive(false);
+        signInPage.SetActive(true);
     }
 
     private void PlayParticleEffects()

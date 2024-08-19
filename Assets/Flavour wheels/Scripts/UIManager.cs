@@ -17,9 +17,6 @@ public class UIManager : MonoBehaviour
     // Prefab used to create rows in FlavourTable1.
     public GameObject flavourRowPrefab;
 
-    // Placeholder UI element shown when data is being fetched.
-    public Transform fetching;
-
     // Updates FlavourTable1 with player data
     public void UpdateFlavourTable(List<DataManager.PlayerData> players)
     {
@@ -110,7 +107,7 @@ public class UIManager : MonoBehaviour
     }
 
 
-    private void UpdateTopThree(Transform topThreeTransform, List<DataManager.SpiritInfo> sortedSpirits, string debugPrefix)
+       private void UpdateTopThree(Transform topThreeTransform, List<DataManager.SpiritInfo> sortedSpirits, string debugPrefix)
     {
         Debug.Log($"Updating {debugPrefix}TopThree with {sortedSpirits.Count} spirits");
         for (int i = 0; i < topThreeTransform.childCount; i++)
@@ -208,7 +205,7 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         }
     }
 
-    private void UpdateRankings()
+     public void UpdateRankings()
     {
         Debug.Log("Updating FlavourTable2 rankings");
 
@@ -235,18 +232,23 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
             Debug.Log($"Rank after set: {GetText(ranksTransform.GetChild(i))}");
         }
     }
-    public void UpdateLocalTopThree(List<DataManager.SpiritInfo> sortedSpirits)
+     public void UpdateLocalTopThree(List<DataManager.SpiritInfo> sortedSpirits)
     {
-        UpdateTopThree(localTopThree, sortedSpirits, "Local");
+        for (int i = 0; i < localTopThree.childCount; i++)
+        {
+            string spiritName = i < sortedSpirits.Count ? sortedSpirits[i].Name : string.Empty;
+            SetText(localTopThree.GetChild(i), spiritName);
+        }
     }
 
-    public void UpdateGeneralTopThree(List<DataManager.SpiritInfo> sortedSpirits)
+    public void UpdateGeneralTopThree(List<string> sortedSpirits)
     {
-        UpdateTopThree(generalTopThree, sortedSpirits, "General");
+        for (int i = 0; i < generalTopThree.childCount; i++)
+        {
+            string spiritName = i < sortedSpirits.Count ? sortedSpirits[i] : string.Empty;
+            SetText(generalTopThree.GetChild(i), spiritName);
+        }
     }
-
-    // Updates the spirit names list in the UI
-   
 
    public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
 {
@@ -319,33 +321,6 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
         return float.TryParse(averageFlavoursTransform.GetChild(index).GetComponent<TMP_Text>().text, out float result) ? result : 0f;
     }
-
-    // Shows placeholder rows in FlavourTable1
-    public void ShowFetchingPlaceholders()
-    {
-        Debug.Log("Showing fetching placeholders");
-        ClearFlavourTable1();
-        if (fetching == null)
-        {
-            Debug.LogError("Fetching prefab is not assigned!");
-            return;
-        }
-
-        for (int i = 0; i < 5; i++)
-        {
-            GameObject placeholder = Instantiate(fetching.gameObject, FlavourTable1);
-            if (placeholder != null)
-            {
-                placeholder.transform.SetAsLastSibling();
-                Debug.Log($"Created fetching placeholder {i + 1}");
-            }
-            else
-            {
-                Debug.LogError($"Failed to instantiate fetching placeholder {i + 1}");
-            }
-        }
-    }
-
     // Hides placeholder rows in FlavourTable1
     public void HideFetchingPlaceholders()
     {
@@ -469,9 +444,9 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
     }
 
     // This method is what DataManager calls to update the top three spirits in UIManager
-    public void UpdateTopThreeSpirits(List<DataManager.SpiritInfo> sortedSpirits)
+      public void UpdateTopThreeSpirits(List<DataManager.SpiritInfo> localSortedSpirits, List<string> generalSortedSpirits)
     {
-        UpdateLocalTopThree(sortedSpirits);
-        UpdateGeneralTopThree(sortedSpirits);
+        UpdateLocalTopThree(localSortedSpirits);
+        UpdateGeneralTopThree(generalSortedSpirits);
     }
 }

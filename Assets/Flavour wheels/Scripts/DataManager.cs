@@ -144,12 +144,51 @@ public class DataManager : MonoBehaviour
             spirit5Ratings = GetSpiritRating(4)
         };
     }
-
-    public List<SpiritInfo> GetSortedSpirits()
+ public List<SpiritInfo> GetLocalSortedSpirits()
     {
         List<SpiritInfo> sortedSpirits = spiritData.Values.ToList();
         sortedSpirits.Sort((a, b) => (b.Rating * b.SelectedFlavors).CompareTo(a.Rating * a.SelectedFlavors));
-        return sortedSpirits;
+        return sortedSpirits.Take(3).ToList();
+    }
+
+    public List<string> GetGeneralSortedSpirits(PlayerDataList playerDataList)
+    {
+        var spiritScores = new Dictionary<string, float>
+        {
+            { playerDataList.items[0].spirit1Name, playerDataList.items[0].spirit1Ratings * playerDataList.items[0].spirit1Flavours },
+            { playerDataList.items[0].spirit2Name, playerDataList.items[0].spirit2Ratings * playerDataList.items[0].spirit2Flavours },
+            { playerDataList.items[0].spirit3Name, playerDataList.items[0].spirit3Ratings * playerDataList.items[0].spirit3Flavours },
+            { playerDataList.items[0].spirit4Name, playerDataList.items[0].spirit4Ratings * playerDataList.items[0].spirit4Flavours },
+            { playerDataList.items[0].spirit5Name, playerDataList.items[0].spirit5Ratings * playerDataList.items[0].spirit5Flavours }
+        };
+
+        return spiritScores.OrderByDescending(pair => pair.Value)
+                           .Take(3)
+                           .Select(pair => pair.Key)
+                           .ToList();
+    }
+     // Add these methods to get average ratings and flavours
+    public float GetAverageRating(int index)
+    {
+        // Implement this method to return the average rating for the spirit at the given index
+        // This should be based on the data in FlavourTable2
+        return 0f; // Placeholder return
+    }
+
+    public float GetAverageFlavour(int index)
+    {
+        // Implement this method to return the average flavour for the spirit at the given index
+        // This should be based on the data in FlavourTable2
+        return 0f; // Placeholder return
+    }
+
+    // ... (rest of the methods remain the same)
+
+    // Call this method when you want to update the UI
+     public void UpdateUIWithLocalSortedSpirits(UIManager uiManager)
+    {
+        var localSortedSpirits = GetLocalSortedSpirits();
+        uiManager.UpdateLocalTopThree(localSortedSpirits);
     }
 
     public string GetSpiritName(int index)

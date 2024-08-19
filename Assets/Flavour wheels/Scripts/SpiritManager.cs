@@ -1,6 +1,6 @@
 using System.Collections;
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class SpiritManager : MonoBehaviour
 {
@@ -15,6 +15,13 @@ public class SpiritManager : MonoBehaviour
     private const string UsernameKey = "Username";
     private const string EmailKey = "Email";
     private const float UpdateInterval = 5f;
+    
+    public GameObject loadingPanel;
+    public GameObject overallRatingPanel;
+    public GameObject resultPanel;
+
+    private Coroutine repeatUpdateCoroutine;
+    private bool isFirstLoadComplete = false;
 
     private void Start()
     {
@@ -40,57 +47,109 @@ public class SpiritManager : MonoBehaviour
     public void SaveDataToPlayerDataTable()
     {
         Debug.Log("SpiritManager: Starting data update process");
-        StartCoroutine(RepeatUpdateProcess());
+        loadingPanel.SetActive(true);
+        overallRatingPanel.SetActive(false);
+        
+        StopRepeatUpdateProcess();
+        StartCoroutine(InitialUpdateProcess());
+    }
+
+    private IEnumerator InitialUpdateProcess()
+    {
+        yield return StartCoroutine(UpdatePlayerDataWithPanelManagement());
+
+        if (isFirstLoadComplete && resultPanel.activeSelf)
+        {
+            repeatUpdateCoroutine = StartCoroutine(RepeatUpdateProcess());
+        }
     }
 
     private IEnumerator RepeatUpdateProcess()
     {
-        while (true)
+        while (resultPanel.activeSelf)
         {
-            Debug.Log("SpiritManager: Updating player data");
-            yield return StartCoroutine(UpdatePlayerData());
             yield return new WaitForSeconds(UpdateInterval);
+            
+            if (resultPanel.activeSelf)
+            {
+                Debug.Log("SpiritManager: Updating player data");
+                yield return StartCoroutine(UpdatePlayerDataWithPanelManagement());
+            }
         }
     }
 
-    private IEnumerator UpdatePlayerData()
+    private IEnumerator UpdatePlayerDataWithPanelManagement()
     {
-        Debug.Log("SpiritManager: Generating and updating player data");
-        var updatedData = dataManager.GeneratePlayerData(username, email, overallRating, feedback);
-        
-        yield return StartCoroutine(dataManager.SaveAndFetchUpdatedData(
-            updatedData,
-            updatedPlayerDataList =>
+        Debug.Log("SpiritManager: Updating player data");
+        bool isDataProcessedSuccessfully = false;
+
+        yield return StartCoroutine(UpdatePlayerData(() => {
+            isDataProcessedSuccessfully = true;
+        }));
+
+        if (isDataProcessedSuccessfully)
+        {
+            loadingPanel.SetActive(false);
+            resultPanel.SetActive(true);
+            Debug.Log("SpiritManager: Data processed successfully, showing result panel");
+
+            if (!isFirstLoadComplete)
             {
-                Debug.Log($"SpiritManager: Data updated successfully. Updating UI with {updatedPlayerDataList.items.Count} items");
-                
-                dataManager.UpdateSpiritNamesListFromServer(updatedPlayerDataList.items, username);
-                
-                uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
-                
-                var currentPlayer = dataManager.FindPlayerByUsername(updatedPlayerDataList, username);
-                if (currentPlayer != null)
-                {
-                    dataManager.UpdateExistingPlayerData(currentPlayer, username, email, overallRating, feedback);
-                }
-                
-                var sortedSpirits = dataManager.GetSortedSpirits();
-                uiManager.UpdateTopThreeSpirits(sortedSpirits);
-                
-                float[] averageRatings = new float[5];
-                float[] averageFlavours = new float[5];
-                CalculateAverages(updatedPlayerDataList.items, out averageRatings, out averageFlavours);
-                
-                Debug.Log("SpiritManager: Updating FlavourTable2");
-                uiManager.UpdateFlavourTable2(dataManager.spiritNames, dataManager.spiritData, averageRatings, averageFlavours);
-            },
-            error =>
-            {
-                Debug.LogError($"SpiritManager: Error updating player data: {error}");
+                isFirstLoadComplete = true;
+                repeatUpdateCoroutine = StartCoroutine(RepeatUpdateProcess());
             }
-        ));
+        }
+        else
+        {
+            loadingPanel.SetActive(false);
+            overallRatingPanel.SetActive(true);
+            Debug.LogError("SpiritManager: Failed to process data, returned to overall rating panel");
+        }
     }
 
+    private IEnumerator UpdatePlayerData(System.Action onSuccess = null)
+{
+    Debug.Log("SpiritManager: Generating and updating player data");
+    var updatedData = dataManager.GeneratePlayerData(username, email, overallRating, feedback);
+    
+    yield return StartCoroutine(dataManager.SaveAndFetchUpdatedData(
+        updatedData,
+        updatedPlayerDataList =>
+        {
+            Debug.Log($"SpiritManager: Data updated successfully. Updating UI with {updatedPlayerDataList.items.Count} items");
+            
+            dataManager.UpdateSpiritNamesListFromServer(updatedPlayerDataList.items, username);
+            
+            uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
+            
+            var currentPlayer = dataManager.FindPlayerByUsername(updatedPlayerDataList, username);
+            if (currentPlayer != null)
+            {
+                dataManager.UpdateExistingPlayerData(currentPlayer, username, email, overallRating, feedback);
+            }
+            
+            float[] averageRatings = new float[5];
+            float[] averageFlavours = new float[5];
+            CalculateAverages(updatedPlayerDataList.items, out averageRatings, out averageFlavours);
+            
+            Debug.Log("SpiritManager: Updating FlavourTable2");
+            uiManager.UpdateFlavourTable2(dataManager.spiritNames, dataManager.spiritData, averageRatings, averageFlavours);
+
+            // Get local and general sorted spirits
+            var localSortedSpirits = dataManager.GetLocalSortedSpirits();
+            var generalSortedSpirits = dataManager.GetGeneralSortedSpirits(updatedPlayerDataList);
+
+            // Update both local and general top three spirits
+            uiManager.UpdateTopThreeSpirits(localSortedSpirits, generalSortedSpirits);
+
+            onSuccess?.Invoke();
+        },
+        error =>
+        {
+            Debug.LogError($"SpiritManager: Error updating player data: {error}");
+        }
+    ));
+}
     private void CalculateAverages(List<DataManager.PlayerData> players, out float[] averageRatings, out float[] averageFlavours)
     {
         Debug.Log("SpiritManager: Calculating averages");
@@ -127,29 +186,63 @@ public class SpiritManager : MonoBehaviour
         Debug.Log($"SpiritManager: Averages calculated - Ratings: [{string.Join(", ", averageRatings)}], Flavours: [{string.Join(", ", averageFlavours)}]");
     }
 
-    public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
+   public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
+{
+    Debug.Log($"SpiritManager: ReceiveSpiritData called with: spiritName={spiritName}, selectedFlavors={selectedFlavors}, rating={rating}");
+
+    if (!dataManager.spiritNames.Contains(spiritName))
     {
-        Debug.Log($"SpiritManager: ReceiveSpiritData called with: spiritName={spiritName}, selectedFlavors={selectedFlavors}, rating={rating}");
+        dataManager.spiritNames.Add(spiritName);
+    }
 
-        if (!dataManager.spiritNames.Contains(spiritName))
+    if (dataManager.spiritData.ContainsKey(spiritName))
+    {
+        dataManager.spiritData[spiritName].SelectedFlavors = selectedFlavors;
+        dataManager.spiritData[spiritName].Rating = rating;
+    }
+    else
+    {
+        dataManager.spiritData.Add(spiritName, new DataManager.SpiritInfo(spiritName, selectedFlavors, rating));
+    }
+
+    Debug.Log("SpiritManager: Updating UI with new spirit data");
+    uiManager.UpdateFlavourTable2LocalData(dataManager.spiritNames, dataManager.spiritData);
+
+    // Update FlavourTable2 with new average data
+    float[] averageRatings = new float[5];
+    float[] averageFlavours = new float[5];
+    for (int i = 0; i < 5; i++)
+    {
+        averageRatings[i] = dataManager.GetAverageRating(i);
+        averageFlavours[i] = dataManager.GetAverageFlavour(i);
+    }
+    uiManager.UpdateFlavourTable2AverageData(averageRatings, averageFlavours);
+
+    // Update local top three spirits
+    dataManager.UpdateUIWithLocalSortedSpirits(uiManager);
+
+    // Update rankings in FlavourTable2
+    uiManager.UpdateRankings();
+}
+
+    public void StopRepeatUpdateProcess()
+    {
+        if (repeatUpdateCoroutine != null)
         {
-            dataManager.spiritNames.Add(spiritName);
+            StopCoroutine(repeatUpdateCoroutine);
+            repeatUpdateCoroutine = null;
         }
+    }
 
-        if (dataManager.spiritData.ContainsKey(spiritName))
-        {
-            dataManager.spiritData[spiritName].SelectedFlavors = selectedFlavors;
-            dataManager.spiritData[spiritName].Rating = rating;
-        }
-        else
-        {
-            dataManager.spiritData.Add(spiritName, new DataManager.SpiritInfo(spiritName, selectedFlavors, rating));
-        }
+    public void ReturnToOverallRating()
+    {
+        resultPanel.SetActive(false);
+        overallRatingPanel.SetActive(true);
+        StopRepeatUpdateProcess();
+    }
 
-        Debug.Log("SpiritManager: Updating UI with new spirit data");
-        uiManager.UpdateFlavourTable2LocalData(dataManager.spiritNames, dataManager.spiritData);
-
-        var sortedSpirits = dataManager.GetSortedSpirits();
-        uiManager.UpdateTopThreeSpirits(sortedSpirits);
+    private void OnDisable()
+    {
+        StopRepeatUpdateProcess();
     }
 }
