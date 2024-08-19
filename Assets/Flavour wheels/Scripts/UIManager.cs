@@ -14,9 +14,6 @@ public class UIManager : MonoBehaviour
     public Transform FlavourTable1;
     public Transform FlavourTable2;
 
-    // List of UI elements to display spirit names.
-    public List<Transform> SpiritNamesList;
-
     // Prefab used to create rows in FlavourTable1.
     public GameObject flavourRowPrefab;
 
@@ -135,11 +132,32 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
 
         UpdateLocalData(spiritNames, spiritData);
         UpdateAverageData(averageRatings, averageFlavours);
+        UpdateMultipliedValues();
         UpdateRankings();
 
         Debug.Log("FlavourTable2 update completed");
     }
+ private void UpdateMultipliedValues()
+    {
+        Debug.Log("Updating FlavourTable2 multiplied values");
 
+        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
+        Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
+        Transform multipliedTransform = FlavourTable2.GetChild(4);
+
+        for (int i = 0; i < 5; i++)
+        {
+            float avgRating = float.Parse(GetText(averageRatingsTransform.GetChild(i)));
+            float avgFlavour = float.Parse(GetText(averageFlavoursTransform.GetChild(i)));
+            float multipliedValue = avgRating * avgFlavour;
+
+            string multipliedText = multipliedValue.ToString("F2");
+
+            Debug.Log($"Setting multiplied value for spirit {i}: {multipliedText}");
+            SetText(multipliedTransform.GetChild(i), multipliedText);
+            Debug.Log($"Multiplied value after set: {GetText(multipliedTransform.GetChild(i))}");
+        }
+    }
     private void UpdateLocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
     {
         Debug.Log("Updating FlavourTable2 local data");
@@ -159,25 +177,34 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
                 flavourText = spirit.SelectedFlavors.ToString();
             }
 
+            Debug.Log($"Setting local rating for spirit {i}: {ratingText}");
             SetText(localRatingsTransform.GetChild(i), ratingText);
+            Debug.Log($"Local rating after set: {GetText(localRatingsTransform.GetChild(i))}");
+
+            Debug.Log($"Setting local flavour for spirit {i}: {flavourText}");
             SetText(localFlavoursTransform.GetChild(i), flavourText);
+            Debug.Log($"Local flavour after set: {GetText(localFlavoursTransform.GetChild(i))}");
         }
     }
-
     private void UpdateAverageData(float[] averageRatings, float[] averageFlavours)
     {
         Debug.Log("Updating FlavourTable2 average data");
 
         Transform averageRatingsTransform = FlavourTable2.GetChild(1);
         Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
-        Transform multipliedTransform = FlavourTable2.GetChild(4);
 
         for (int i = 0; i < 5; i++)
         {
-            SetText(averageRatingsTransform.GetChild(i), averageRatings[i].ToString("F2"));
-            SetText(averageFlavoursTransform.GetChild(i), averageFlavours[i].ToString("F2"));
-            float multipliedValue = averageRatings[i] * averageFlavours[i];
-            SetText(multipliedTransform.GetChild(i), multipliedValue.ToString("F2"));
+            string avgRatingText = averageRatings[i].ToString("F2");
+            string avgFlavourText = averageFlavours[i].ToString("F2");
+
+            Debug.Log($"Setting average rating for spirit {i}: {avgRatingText}");
+            SetText(averageRatingsTransform.GetChild(i), avgRatingText);
+            Debug.Log($"Average rating after set: {GetText(averageRatingsTransform.GetChild(i))}");
+
+            Debug.Log($"Setting average flavour for spirit {i}: {avgFlavourText}");
+            SetText(averageFlavoursTransform.GetChild(i), avgFlavourText);
+            Debug.Log($"Average flavour after set: {GetText(averageFlavoursTransform.GetChild(i))}");
         }
     }
 
@@ -191,10 +218,7 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         float[] multipliedValues = new float[5];
         for (int i = 0; i < 5; i++)
         {
-            if (float.TryParse(multipliedTransform.GetChild(i).GetComponent<TMP_Text>().text, out float value))
-            {
-                multipliedValues[i] = value;
-            }
+            multipliedValues[i] = float.Parse(GetText(multipliedTransform.GetChild(i)));
         }
 
         var sortedIndices = Enumerable.Range(0, multipliedValues.Length)
@@ -204,7 +228,11 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         for (int i = 0; i < multipliedValues.Length; i++)
         {
             int rank = System.Array.IndexOf(sortedIndices, i) + 1;
-            SetText(ranksTransform.GetChild(i), GetRankString(rank));
+            string rankText = GetRankString(rank);
+
+            Debug.Log($"Setting rank for spirit {i}: {rankText}");
+            SetText(ranksTransform.GetChild(i), rankText);
+            Debug.Log($"Rank after set: {GetText(ranksTransform.GetChild(i))}");
         }
     }
     public void UpdateLocalTopThree(List<DataManager.SpiritInfo> sortedSpirits)
@@ -218,17 +246,7 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
     }
 
     // Updates the spirit names list in the UI
-    public void UpdateSpiritNamesList(List<string> spiritNames)
-    {
-        foreach (var transform in SpiritNamesList)
-        {
-            TMP_Text[] textComponents = transform.GetComponentsInChildren<TMP_Text>();
-            for (int i = 0; i < textComponents.Length; i++)
-            {
-                textComponents[i].text = i < spiritNames.Count ? spiritNames[i] : string.Empty;
-            }
-        }
-    }
+   
 
    public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
 {
@@ -385,6 +403,28 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         }
     }
 
+    private string GetText(Transform transform)
+    {
+        var tmpText = transform.GetComponent<TMP_Text>();
+        if (tmpText != null)
+        {
+            return tmpText.text;
+        }
+        else
+        {
+            var legacyText = transform.GetComponent<Text>();
+            if (legacyText != null)
+            {
+                return legacyText.text;
+            }
+            else
+            {
+                Debug.LogWarning($"No text component found on {transform.name}");
+                return string.Empty;
+            }
+        }
+    }
+
     // Sets the flavour data (color and text) for a flavour UI element
     private void SetFlavourData(Transform flavourTransform, int flavour)
     {
@@ -410,7 +450,7 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
     }
 
     // Converts an integer rank to its ordinal representation
-    private string GetRankString(int rank)
+      private string GetRankString(int rank)
     {
         switch (rank)
         {

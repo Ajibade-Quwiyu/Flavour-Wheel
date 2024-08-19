@@ -25,6 +25,7 @@ public class UserInputManager : MonoBehaviour
     public Transform overallRatingTransform;
     public Button submitButton;
     public List<SpiritTextFieldSet> spiritTextFieldSets;
+    public List<Transform> SpiritNamesList;
     public Text drinkCategoryText;
     public GameObject signInPage;
     public GameObject gamePanel;
@@ -300,39 +301,57 @@ public class UserInputManager : MonoBehaviour
     }
 
     private void UpdateUI(AdminData data)
+{
+    drinkCategoryText.text = data.drinkCategory + " WHEEL";
+
+    // Update all sets of spirit text fields
+    foreach (SpiritTextFieldSet textFieldSet in spiritTextFieldSets)
     {
-        drinkCategoryText.text = data.drinkCategory + " WHEEL";
+        if (textFieldSet.spirit1Text != null) textFieldSet.spirit1Text.text = data.spirit1;
+        if (textFieldSet.spirit2Text != null) textFieldSet.spirit2Text.text = data.spirit2;
+        if (textFieldSet.spirit3Text != null) textFieldSet.spirit3Text.text = data.spirit3;
+        if (textFieldSet.spirit4Text != null) textFieldSet.spirit4Text.text = data.spirit4;
+        if (textFieldSet.spirit5Text != null) textFieldSet.spirit5Text.text = data.spirit5;
+    }
 
-        // Update all sets of spirit text fields
-        foreach (SpiritTextFieldSet textFieldSet in spiritTextFieldSets)
+    // Update all TMP_Text fields directly within SpiritNamesList
+    foreach (Transform spiritNameTransform in SpiritNamesList)
+    {
+        if (spiritNameTransform.childCount >= 5)
         {
-            if (textFieldSet.spirit1Text != null) textFieldSet.spirit1Text.text = data.spirit1;
-            if (textFieldSet.spirit2Text != null) textFieldSet.spirit2Text.text = data.spirit2;
-            if (textFieldSet.spirit3Text != null) textFieldSet.spirit3Text.text = data.spirit3;
-            if (textFieldSet.spirit4Text != null) textFieldSet.spirit4Text.text = data.spirit4;
-            if (textFieldSet.spirit5Text != null) textFieldSet.spirit5Text.text = data.spirit5;
-        }
-
-        // Deactivate all drink category transforms
-        foreach (var transform in drinkCategoryTransforms)
-        {
-            if (transform != null)
-            {
-                transform.gameObject.SetActive(false);
-            }
-        }
-
-        // Activate the matching drink category transform
-        Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.drinkCategory, System.StringComparison.OrdinalIgnoreCase));
-        if (matchingTransform != null)
-        {
-            matchingTransform.gameObject.SetActive(true);
+            spiritNameTransform.GetChild(0).GetComponent<TMP_Text>().text = data.spirit1;
+            spiritNameTransform.GetChild(1).GetComponent<TMP_Text>().text = data.spirit2;
+            spiritNameTransform.GetChild(2).GetComponent<TMP_Text>().text = data.spirit3;
+            spiritNameTransform.GetChild(3).GetComponent<TMP_Text>().text = data.spirit4;
+            spiritNameTransform.GetChild(4).GetComponent<TMP_Text>().text = data.spirit5;
         }
         else
         {
-            Debug.LogWarning($"No matching transform found for drink category: {data.drinkCategory}");
+            Debug.LogWarning($"Transform {spiritNameTransform.name} does not have enough children.");
         }
     }
+
+    // Deactivate all drink category transforms
+    foreach (var transform in drinkCategoryTransforms)
+    {
+        if (transform != null)
+        {
+            transform.gameObject.SetActive(false);
+        }
+    }
+
+    // Activate the matching drink category transform
+    Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.drinkCategory, System.StringComparison.OrdinalIgnoreCase));
+    if (matchingTransform != null)
+    {
+        matchingTransform.gameObject.SetActive(true);
+    }
+    else
+    {
+        Debug.LogWarning($"No matching transform found for drink category: {data.drinkCategory}");
+    }
+}
+
 
     [System.Serializable]
     public class AdminData
