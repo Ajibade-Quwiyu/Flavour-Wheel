@@ -6,7 +6,6 @@ using UnityEngine.Networking;
 
 public class DataManager : MonoBehaviour
 {
-    // This class represents a spirit, including its name, selected flavors, and rating.
     public class SpiritInfo
     {
         public string Name;
@@ -21,19 +20,14 @@ public class DataManager : MonoBehaviour
         }
     }
 
-    // A dictionary to store the spirit data, keyed by the spirit's name.
     public Dictionary<string, SpiritInfo> spiritData = new Dictionary<string, SpiritInfo>();
-
-    // A list to store the names of the spirits.
     public List<string> spiritNames = new List<string>();
 
-    // The endpoint for the API that handles player data.
     private const string playerEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel";
+    private const string UserIdKey = "UserId";
 
-    // Fetches player data from the server and returns it via callbacks.
     public IEnumerator FetchPlayerData(System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
     {
-        Debug.Log("Fetching player data...");
         using (UnityWebRequest request = UnityWebRequest.Get(playerEndpoint))
         {
             yield return request.SendWebRequest();
@@ -41,131 +35,69 @@ public class DataManager : MonoBehaviour
             if (request.result == UnityWebRequest.Result.Success)
             {
                 string json = request.downloadHandler.text;
-                Debug.Log($"Received JSON: {json}");
                 PlayerDataList playerDataList = JsonUtility.FromJson<PlayerDataList>($"{{\"items\":{json}}}");
                 if (playerDataList != null && playerDataList.items != null)
                 {
-                    Debug.Log($"Successfully parsed {playerDataList.items.Count} player(s)");
                     onSuccess?.Invoke(playerDataList);
                 }
                 else
                 {
-                    Debug.LogError("Failed to parse player data from server response.");
                     onError?.Invoke("Failed to parse player data from server response.");
                 }
             }
             else
             {
-                Debug.LogError($"Error fetching player data: {request.error}");
                 onError?.Invoke(request.error);
             }
         }
     }
 
-    // Saves updated player data to the server and then fetches the updated data.
     public IEnumerator SaveAndFetchUpdatedData(PlayerData updatedData, System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
     {
+        int userId = GetUserId();
         string jsonData = JsonUtility.ToJson(updatedData);
+        string url = userId == 0 ? playerEndpoint : $"{playerEndpoint}/{userId}";
+        string method = userId == 0 ? "POST" : "PUT";
 
-        using (UnityWebRequest postRequest = new UnityWebRequest(playerEndpoint, "POST"))
+        using (UnityWebRequest request = new UnityWebRequest(url, method))
         {
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            postRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            postRequest.downloadHandler = new DownloadHandlerBuffer();
-            postRequest.SetRequestHeader("Content-Type", "application/json");
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
 
-            yield return postRequest.SendWebRequest();
+            yield return request.SendWebRequest();
 
-            if (postRequest.result == UnityWebRequest.Result.Success)
+            if (request.result == UnityWebRequest.Result.Success)
             {
-                // If the save is successful, fetch the updated data.
+                if (userId == 0)
+                {
+                    PlayerData createdPlayer = JsonUtility.FromJson<PlayerData>(request.downloadHandler.text);
+                    SaveUserId(createdPlayer.id);
+                }
+
                 yield return FetchPlayerData(onSuccess, onError);
             }
-            else
+            else if (request.responseCode == 404 && userId != 0)
             {
-                // Call the onError callback if the save request fails.
-                onError?.Invoke(postRequest.error);
-            }
-        }
-    }
-    public IEnumerator CheckAndUpdatePlayerData(string username, string email, int overallRating, string feedback, System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
-    {
-        Debug.Log("Checking and updating player data...");
-
-        // First, fetch the current data
-        yield return StartCoroutine(FetchPlayerData(
-            playerDataList =>
-            {
-                PlayerData playerData = FindPlayerByUsername(playerDataList, username);
-
-                if (playerData == null)
-                {
-                    // Player doesn't exist, create new data
-                    playerData = new PlayerData
-                    {
-                        username = username,
-                        email = email,
-                        overallRating = overallRating,
-                        feedback = feedback
-                        // Initialize other fields as necessary
-                    };
-                    playerDataList.items.Add(playerData);
-                }
-                else
-                {
-                    // Player exists, update data
-                    playerData.email = email;
-                    playerData.overallRating = overallRating;
-                    playerData.feedback = feedback;
-                    // Update other fields as necessary
-                }
-
-                // Now save the updated data
-                StartCoroutine(SavePlayerData(playerDataList, onSuccess, onError));
-            },
-            error =>
-            {
-                Debug.LogError($"Error fetching player data: {error}");
-                onError?.Invoke(error);
-            }
-        ));
-    }
-
-    private IEnumerator SavePlayerData(PlayerDataList playerDataList, System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
-    {
-        string jsonData = JsonUtility.ToJson(playerDataList);
-
-        using (UnityWebRequest postRequest = new UnityWebRequest(playerEndpoint, "POST"))
-        {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            postRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            postRequest.downloadHandler = new DownloadHandlerBuffer();
-            postRequest.SetRequestHeader("Content-Type", "application/json");
-
-            yield return postRequest.SendWebRequest();
-
-            if (postRequest.result == UnityWebRequest.Result.Success)
-            {
-                Debug.Log("Player data saved successfully");
-                onSuccess?.Invoke(playerDataList);
+                SaveUserId(0);
+                yield return SaveAndFetchUpdatedData(updatedData, onSuccess, onError);
             }
             else
             {
-                Debug.LogError($"Error saving player data: {postRequest.error}");
-                onError?.Invoke(postRequest.error);
+                onError?.Invoke(request.error);
             }
         }
     }
 
-    // Finds a player by their username in the player data list.
     public PlayerData FindPlayerByUsername(PlayerDataList playerDataList, string username)
     {
         return playerDataList.items.FirstOrDefault(p => p.username == username);
     }
 
-    // Updates the existing player data with new information.
     public void UpdateExistingPlayerData(PlayerData player, string username, string email, int overallRating, string feedback)
     {
+        player.username = username;
         player.email = email;
         player.overallRating = overallRating;
         player.feedback = feedback;
@@ -186,11 +118,11 @@ public class DataManager : MonoBehaviour
         player.spirit5Ratings = GetSpiritRating(4);
     }
 
-    // Generates a new PlayerData object based on the current state of the game.
     public PlayerData GeneratePlayerData(string username, string email, int overallRating, string feedback)
     {
         return new PlayerData
         {
+            id = GetUserId(),
             username = username,
             email = email,
             overallRating = overallRating,
@@ -213,7 +145,6 @@ public class DataManager : MonoBehaviour
         };
     }
 
-    // Retrieves and sorts the spirits based on their rating and flavor.
     public List<SpiritInfo> GetSortedSpirits()
     {
         List<SpiritInfo> sortedSpirits = spiritData.Values.ToList();
@@ -221,13 +152,11 @@ public class DataManager : MonoBehaviour
         return sortedSpirits;
     }
 
-    // Retrieves the spirit name at a specific index from the spiritNames list.
     public string GetSpiritName(int index)
     {
         return spiritNames.Count > index ? spiritNames[index] : "";
     }
 
-    // Retrieves the flavor count for a spirit at a specific index from the spiritData dictionary.
     public int GetSpiritFlavor(int index)
     {
         return spiritNames.Count > index && spiritData.ContainsKey(spiritNames[index])
@@ -235,7 +164,6 @@ public class DataManager : MonoBehaviour
             : 0;
     }
 
-    // Retrieves the rating for a spirit at a specific index from the spiritData dictionary.
     public int GetSpiritRating(int index)
     {
         return spiritNames.Count > index && spiritData.ContainsKey(spiritNames[index])
@@ -243,24 +171,11 @@ public class DataManager : MonoBehaviour
             : 0;
     }
 
-    // Updates the top three spirits based on rating and flavor selection and updates the UI through UIManager.
-    public void UpdateTopThreeSpirits(UIManager uiManager)
-    {
-        List<SpiritInfo> sortedSpirits = spiritData.Values.ToList();
-        sortedSpirits.Sort((a, b) => (b.Rating * b.SelectedFlavors).CompareTo(a.Rating * a.SelectedFlavors));
-
-        // Updates the local and general top three spirits in the UIManager.
-        uiManager.UpdateLocalTopThree(sortedSpirits);
-        uiManager.UpdateGeneralTopThree(sortedSpirits);
-    }
-
-    // Updates the spirit names list from server data for the current player.
     public void UpdateSpiritNamesListFromServer(List<PlayerData> players, string currentUsername)
     {
         PlayerData currentPlayer = players.FirstOrDefault(p => p.username == currentUsername);
         if (currentPlayer != null)
         {
-            // Clears the existing spirit names and adds the new names from the server data.
             spiritNames.Clear();
             AddSpiritName(currentPlayer.spirit1Name);
             AddSpiritName(currentPlayer.spirit2Name);
@@ -271,7 +186,6 @@ public class DataManager : MonoBehaviour
         }
     }
 
-    // Adds a spirit name to the spiritNames list if it is not null or empty.
     private void AddSpiritName(string name)
     {
         if (!string.IsNullOrEmpty(name))
@@ -280,7 +194,6 @@ public class DataManager : MonoBehaviour
         }
     }
 
-    // Updates the spiritData dictionary to include only the spirits that are in the spiritNames list.
     private void UpdateSpiritData()
     {
         foreach (string spiritName in spiritNames)
@@ -291,7 +204,6 @@ public class DataManager : MonoBehaviour
             }
         }
 
-        // Remove any spirits from the dictionary that are no longer in the spiritNames list.
         List<string> keysToRemove = spiritData.Keys.Where(k => !spiritNames.Contains(k)).ToList();
         foreach (string key in keysToRemove)
         {
@@ -299,7 +211,17 @@ public class DataManager : MonoBehaviour
         }
     }
 
-    // Classes to represent the structure of player data and the list of player data items.
+    private int GetUserId()
+    {
+        return PlayerPrefs.GetInt(UserIdKey, 0);
+    }
+
+    private void SaveUserId(int id)
+    {
+        PlayerPrefs.SetInt(UserIdKey, id);
+        PlayerPrefs.Save();
+    }
+
     [System.Serializable]
     public class PlayerData
     {

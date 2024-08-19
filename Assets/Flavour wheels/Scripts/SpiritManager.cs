@@ -1,6 +1,6 @@
 using System.Collections;
 using UnityEngine;
-
+using System.Collections.Generic;
 public class SpiritManager : MonoBehaviour
 {
     // References to DataManager and UIManager components.
@@ -60,69 +60,53 @@ public class SpiritManager : MonoBehaviour
     private IEnumerator CheckAndUpdatePlayerData()
     {
         Debug.Log("Checking and updating player data...");
-        bool dataUpdated = false;
 
-        yield return StartCoroutine(dataManager.FetchPlayerData(
-            playerDataList =>
+        var updatedData = dataManager.GeneratePlayerData(username, email, overallRating, feedback);
+        
+        yield return StartCoroutine(dataManager.SaveAndFetchUpdatedData(
+            updatedData,
+            updatedPlayerDataList =>
             {
-                Debug.Log($"Received player data list with {playerDataList.items.Count} items");
-                var existingPlayer = dataManager.FindPlayerByUsername(playerDataList, username);
-
-                if (existingPlayer != null)
-                {
-                    Debug.Log($"Updating existing player: {username}");
-                    dataManager.UpdateExistingPlayerData(existingPlayer, username, email, overallRating, feedback);
-                    uiManager.UpdateFlavourTable(playerDataList.items);
-                    dataUpdated = true;
-                }
-                else
-                {
-                    Debug.Log($"Player not found: {username}");
-                }
+                Debug.Log($"Data saved and fetched. Updating UI with {updatedPlayerDataList.items.Count} items");
+                uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
+                dataManager.UpdateSpiritNamesListFromServer(updatedPlayerDataList.items, username);
+                var sortedSpirits = dataManager.GetSortedSpirits();
+                uiManager.UpdateTopThreeSpirits(sortedSpirits);
             },
             error =>
             {
-                Debug.LogError($"Error fetching player data: {error}");
+                Debug.LogError($"Error saving/fetching data: {error}");
             }
         ));
-
-        if (dataUpdated)
-        {
-            Debug.Log("Saving updated data...");
-            var updatedData = dataManager.GeneratePlayerData(username, email, overallRating, feedback);
-            yield return StartCoroutine(dataManager.SaveAndFetchUpdatedData(
-                updatedData,
-                updatedPlayerDataList =>
-                {
-                    Debug.Log($"Data saved and fetched. Updating UI with {updatedPlayerDataList.items.Count} items");
-                    uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
-                    var sortedSpirits = dataManager.GetSortedSpirits();
-                    uiManager.UpdateTopThreeSpirits(sortedSpirits);
-                },
-                error =>
-                {
-                    Debug.LogError($"Error saving data: {error}");
-                }
-            ));
-        }
-        else
-        {
-            Debug.Log("No data updated");
-        }
     }
     private IEnumerator UpdatePlayerData()
     {
-        yield return StartCoroutine(dataManager.CheckAndUpdatePlayerData(
-            username,
-            email,
-            overallRating,
-            feedback,
+        var updatedData = dataManager.GeneratePlayerData(username, email, overallRating, feedback);
+        
+        yield return StartCoroutine(dataManager.SaveAndFetchUpdatedData(
+            updatedData,
             updatedPlayerDataList =>
             {
                 Debug.Log($"Data updated successfully. Updating UI with {updatedPlayerDataList.items.Count} items");
+                
+                dataManager.UpdateSpiritNamesListFromServer(updatedPlayerDataList.items, username);
+                
                 uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
+                
+                var currentPlayer = dataManager.FindPlayerByUsername(updatedPlayerDataList, username);
+                if (currentPlayer != null)
+                {
+                    dataManager.UpdateExistingPlayerData(currentPlayer, username, email, overallRating, feedback);
+                }
+                
                 var sortedSpirits = dataManager.GetSortedSpirits();
                 uiManager.UpdateTopThreeSpirits(sortedSpirits);
+                
+                float[] averageRatings = new float[5];
+                float[] averageFlavours = new float[5];
+                CalculateAverages(updatedPlayerDataList.items, out averageRatings, out averageFlavours);
+                
+                uiManager.UpdateFlavourTable2(dataManager.spiritNames, dataManager.spiritData, averageRatings, averageFlavours);
             },
             error =>
             {
@@ -130,6 +114,40 @@ public class SpiritManager : MonoBehaviour
             }
         ));
     }
+
+    private void CalculateAverages(List<DataManager.PlayerData> players, out float[] averageRatings, out float[] averageFlavours)
+    {
+        averageRatings = new float[5];
+        averageFlavours = new float[5];
+
+        if (players == null || players.Count == 0)
+        {
+            Debug.LogWarning("No player data available for average calculation");
+            return;
+        }
+
+        foreach (var player in players)
+        {
+            averageRatings[0] += player.spirit1Ratings;
+            averageRatings[1] += player.spirit2Ratings;
+            averageRatings[2] += player.spirit3Ratings;
+            averageRatings[3] += player.spirit4Ratings;
+            averageRatings[4] += player.spirit5Ratings;
+
+            averageFlavours[0] += player.spirit1Flavours;
+            averageFlavours[1] += player.spirit2Flavours;
+            averageFlavours[2] += player.spirit3Flavours;
+            averageFlavours[3] += player.spirit4Flavours;
+            averageFlavours[4] += player.spirit5Flavours;
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            averageRatings[i] /= players.Count;
+            averageFlavours[i] /= players.Count;
+        }
+    }
+
     // This method updates spirit data with new information and refreshes the UI.
     public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
     {

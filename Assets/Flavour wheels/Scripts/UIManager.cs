@@ -62,58 +62,56 @@ public class UIManager : MonoBehaviour
         Debug.Log("Cleared FlavourTable1");
     }
 
-    // Updates FlavourTable2 with average data (ratings and flavours).
-    public void UpdateFlavourTable2AverageData(decimal[] averageRatings, decimal[] averageFlavours)
+      public void UpdateFlavourTable2AverageData(float[] averageRatings, float[] averageFlavours)
     {
-        // Get references to the specific UI elements within FlavourTable2 for ratings, flavours, and their product.
+        if (FlavourTable2 == null)
+        {
+            Debug.LogError("FlavourTable2 is not assigned!");
+            return;
+        }
+
+        Debug.Log("Updating FlavourTable2 average data");
+
         Transform averageRatingsTransform = FlavourTable2.GetChild(1);
         Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
         Transform multipliedTransform = FlavourTable2.GetChild(4);
 
-        // Set the text values for each of the five spirit slots.
+        float[] multipliedValues = new float[5];
+
         for (int i = 0; i < 5; i++)
         {
             SetText(averageRatingsTransform.GetChild(i), averageRatings[i].ToString("F2"));
             SetText(averageFlavoursTransform.GetChild(i), averageFlavours[i].ToString("F2"));
-            SetText(multipliedTransform.GetChild(i), (averageRatings[i] * averageFlavours[i]).ToString("F2"));
+            multipliedValues[i] = averageRatings[i] * averageFlavours[i];
+            SetText(multipliedTransform.GetChild(i), multipliedValues[i].ToString("F2"));
         }
 
-        // Update the rankings based on the calculated products.
-        UpdateFlavourTable2Ranks();
+        UpdateFlavourTable2Ranks(multipliedValues);
     }
 
-    // Updates the ranking in FlavourTable2 based on multiplied values
-    public void UpdateFlavourTable2Ranks()
+      private void UpdateFlavourTable2Ranks(float[] multipliedValues)
     {
-        // Get references to the multiplied values and rank UI elements.
-        Transform multipliedTransform = FlavourTable2.GetChild(4);
-        Transform ranksTransform = FlavourTable2.GetChild(5);
-
-        decimal[] multipliedValues = new decimal[5];
-
-        // Parse the multiplied values from the UI.
-        for (int i = 0; i < multipliedValues.Length; i++)
+        if (FlavourTable2 == null)
         {
-            if (decimal.TryParse(multipliedTransform.GetChild(i).GetComponent<TMP_Text>().text, out decimal value))
-            {
-                multipliedValues[i] = value;
-            }
-            else
-            {
-                multipliedValues[i] = 0;
-            }
+            Debug.LogError("FlavourTable2 is not assigned!");
+            return;
         }
 
-        // Sort the values to determine the rankings.
-        decimal[] sortedValues = multipliedValues.OrderByDescending(v => v).ToArray();
+        Debug.Log("Updating FlavourTable2 ranks");
 
-        // Update the rank UI elements with the appropriate rank strings.
+        Transform ranksTransform = FlavourTable2.GetChild(5);
+
+        var sortedIndices = Enumerable.Range(0, multipliedValues.Length)
+                                      .OrderByDescending(i => multipliedValues[i])
+                                      .ToArray();
+
         for (int i = 0; i < multipliedValues.Length; i++)
         {
-            int rank = System.Array.IndexOf(sortedValues, multipliedValues[i]) + 1;
+            int rank = System.Array.IndexOf(sortedIndices, i) + 1;
             SetText(ranksTransform.GetChild(i), GetRankString(rank));
         }
     }
+
 
     private void UpdateTopThree(Transform topThreeTransform, List<DataManager.SpiritInfo> sortedSpirits, string debugPrefix)
     {
@@ -125,7 +123,90 @@ public class UIManager : MonoBehaviour
             Debug.Log($"Set {debugPrefix}TopThree[{i}] to {spiritName}");
         }
     }
+public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData, float[] averageRatings, float[] averageFlavours)
+    {
+        if (FlavourTable2 == null)
+        {
+            Debug.LogError("FlavourTable2 is not assigned!");
+            return;
+        }
 
+        Debug.Log("Starting comprehensive update of FlavourTable2");
+
+        UpdateLocalData(spiritNames, spiritData);
+        UpdateAverageData(averageRatings, averageFlavours);
+        UpdateRankings();
+
+        Debug.Log("FlavourTable2 update completed");
+    }
+
+    private void UpdateLocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
+    {
+        Debug.Log("Updating FlavourTable2 local data");
+
+        Transform localRatingsTransform = FlavourTable2.GetChild(0);
+        Transform localFlavoursTransform = FlavourTable2.GetChild(2);
+
+        for (int i = 0; i < 5; i++)
+        {
+            string ratingText = "0";
+            string flavourText = "0";
+
+            if (i < spiritNames.Count && spiritData.ContainsKey(spiritNames[i]))
+            {
+                var spirit = spiritData[spiritNames[i]];
+                ratingText = spirit.Rating.ToString();
+                flavourText = spirit.SelectedFlavors.ToString();
+            }
+
+            SetText(localRatingsTransform.GetChild(i), ratingText);
+            SetText(localFlavoursTransform.GetChild(i), flavourText);
+        }
+    }
+
+    private void UpdateAverageData(float[] averageRatings, float[] averageFlavours)
+    {
+        Debug.Log("Updating FlavourTable2 average data");
+
+        Transform averageRatingsTransform = FlavourTable2.GetChild(1);
+        Transform averageFlavoursTransform = FlavourTable2.GetChild(3);
+        Transform multipliedTransform = FlavourTable2.GetChild(4);
+
+        for (int i = 0; i < 5; i++)
+        {
+            SetText(averageRatingsTransform.GetChild(i), averageRatings[i].ToString("F2"));
+            SetText(averageFlavoursTransform.GetChild(i), averageFlavours[i].ToString("F2"));
+            float multipliedValue = averageRatings[i] * averageFlavours[i];
+            SetText(multipliedTransform.GetChild(i), multipliedValue.ToString("F2"));
+        }
+    }
+
+    private void UpdateRankings()
+    {
+        Debug.Log("Updating FlavourTable2 rankings");
+
+        Transform multipliedTransform = FlavourTable2.GetChild(4);
+        Transform ranksTransform = FlavourTable2.GetChild(5);
+
+        float[] multipliedValues = new float[5];
+        for (int i = 0; i < 5; i++)
+        {
+            if (float.TryParse(multipliedTransform.GetChild(i).GetComponent<TMP_Text>().text, out float value))
+            {
+                multipliedValues[i] = value;
+            }
+        }
+
+        var sortedIndices = Enumerable.Range(0, multipliedValues.Length)
+                                      .OrderByDescending(i => multipliedValues[i])
+                                      .ToArray();
+
+        for (int i = 0; i < multipliedValues.Length; i++)
+        {
+            int rank = System.Array.IndexOf(sortedIndices, i) + 1;
+            SetText(ranksTransform.GetChild(i), GetRankString(rank));
+        }
+    }
     public void UpdateLocalTopThree(List<DataManager.SpiritInfo> sortedSpirits)
     {
         UpdateTopThree(localTopThree, sortedSpirits, "Local");
@@ -149,27 +230,50 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // Updates FlavourTable2 with local spirit data
-    public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
+   public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
+{
+    if (FlavourTable2 == null)
     {
-        Transform localRatingsTransform = FlavourTable2.GetChild(0);
-        Transform localFlavoursTransform = FlavourTable2.GetChild(2);
+        Debug.LogError("FlavourTable2 is not assigned!");
+        return;
+    }
 
-        for (int i = 0; i < 5; i++)
+    Debug.Log("Updating FlavourTable2 local data");
+
+    Transform localRatingsTransform = FlavourTable2.GetChild(0);
+    Transform localFlavoursTransform = FlavourTable2.GetChild(2);
+
+    if (localRatingsTransform == null || localFlavoursTransform == null)
+    {
+        Debug.LogError("FlavourTable2 child transforms are not set up correctly!");
+        return;
+    }
+
+    for (int i = 0; i < 5; i++)
+    {
+        string ratingText = "0";
+        string flavourText = "0";
+
+        if (i < spiritNames.Count && spiritData.ContainsKey(spiritNames[i]))
         {
-            if (i < spiritNames.Count && spiritData.ContainsKey(spiritNames[i]))
-            {
-                SetText(localRatingsTransform.GetChild(i), spiritData[spiritNames[i]].Rating.ToString());
-                SetText(localFlavoursTransform.GetChild(i), spiritData[spiritNames[i]].SelectedFlavors.ToString());
-            }
-            else
-            {
-                SetText(localRatingsTransform.GetChild(i), "0");
-                SetText(localFlavoursTransform.GetChild(i), "0");
-            }
+            var spirit = spiritData[spiritNames[i]];
+            ratingText = spirit.Rating.ToString();
+            flavourText = spirit.SelectedFlavors.ToString();
+        }
+
+        if (i < localRatingsTransform.childCount && i < localFlavoursTransform.childCount)
+        {
+            SetText(localRatingsTransform.GetChild(i), ratingText);
+            SetText(localFlavoursTransform.GetChild(i), flavourText);
+        }
+        else
+        {
+            Debug.LogWarning($"FlavourTable2 is missing child at index {i}");
         }
     }
 
+    Debug.Log("FlavourTable2 local data updated successfully");
+}
     // Retrieves local data rating from FlavourTable2
     public float GetLocalDataRating(int index)
     {
@@ -260,16 +364,16 @@ public class UIManager : MonoBehaviour
     }
 
     // Sets the text of a UI element
-    private void SetText(Transform transform, string text)
+      private void SetText(Transform transform, string text)
     {
-        TMP_Text tmpText = transform.GetComponent<TMP_Text>();
+        var tmpText = transform.GetComponent<TMP_Text>();
         if (tmpText != null)
         {
             tmpText.text = text;
         }
         else
         {
-            Text legacyText = transform.GetComponent<Text>();
+            var legacyText = transform.GetComponent<Text>();
             if (legacyText != null)
             {
                 legacyText.text = text;
@@ -313,9 +417,7 @@ public class UIManager : MonoBehaviour
             case 1: return "1st";
             case 2: return "2nd";
             case 3: return "3rd";
-            case 4: return "4th";
-            case 5: return "5th";
-            default: return rank.ToString();
+            default: return rank + "th";
         }
     }
 
