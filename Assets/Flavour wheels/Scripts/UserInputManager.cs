@@ -5,6 +5,7 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 public class UserInputManager : MonoBehaviour
 {
@@ -47,7 +48,12 @@ public class UserInputManager : MonoBehaviour
     private const string EmailKey = "PlayerEmail";
     private string adminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
 
-    void Start()
+    private AdminData cachedAdminData;
+    private bool isDataLoaded = false;
+    private bool isOfflineMode = false;
+
+   
+    public void StartMethod()
     {
         incorrectPasscodeIndicator = submitButton.transform.GetChild(0).gameObject;
 
@@ -81,6 +87,9 @@ public class UserInputManager : MonoBehaviour
         LoadUserData();
         SetupParticles();
         ValidateSpiritTextFieldSets();
+
+        LoadCachedAdminData();
+        StartCoroutine(LoadAdminDataAtStart());
     }
 
     private void ValidateSpiritTextFieldSets()
@@ -150,30 +159,55 @@ public class UserInputManager : MonoBehaviour
         submitButton.interactable = !string.IsNullOrEmpty(usernameInputField.text) && !string.IsNullOrEmpty(passcodeKeyInputField.text);
     }
 
-    public void OnSubmitButtonClicked()
+    private void LoadCachedAdminData()
     {
-        string enteredPasscodeKey = passcodeKeyInputField.text.Trim();
-        string username = usernameInputField.text.Trim();
-        string email = emailInputField.text.Trim();
-
-        Debug.Log($"Entered Passcode: '{enteredPasscodeKey}'");
-
-        signInPage.SetActive(false);
-        loadingPanel.SetActive(true);
-
-        StartCoroutine(GetAdminDataWithRetry(enteredPasscodeKey, 0));
+        string cachedJson = PlayerPrefs.GetString("CachedAdminData", "");
+        if (!string.IsNullOrEmpty(cachedJson))
+        {
+            cachedAdminData = AdminData.ParseJson(cachedJson);
+            isDataLoaded = (cachedAdminData != null);
+            isOfflineMode = true;
+        }
     }
-    private IEnumerator GetAdminDataWithRetry(string enteredPasscodeKey, int retryCount)
+
+    private void SaveCachedAdminData(AdminData data)
+    {
+        if (data != null)
+        {
+            string json = JsonUtility.ToJson(data);
+            PlayerPrefs.SetString("CachedAdminData", json);
+            PlayerPrefs.Save();
+        }
+    }
+
+    private IEnumerator LoadAdminDataAtStart()
+    {
+        yield return StartCoroutine(GetAdminDataWithRetry(0));
+
+    }
+
+    private void DisplayOfflineModeMessage()
+    {
+        string message = "No internet connection. Please connect to the internet to access the game.";
+        DisplayConnectionError(message);
+    }
+
+    private IEnumerator GetAdminDataWithRetry(int retryCount)
     {
         bool isConnected = false;
-        AdminData adminData = null;
 
         while (!isConnected && retryCount < maxRetries)
         {
             yield return StartCoroutine(GetAdminData((data) =>
             {
-                adminData = data;
-                isConnected = (data != null);
+                if (data != null)
+                {
+                    cachedAdminData = data;
+                    isDataLoaded = true;
+                    isConnected = true;
+                    isOfflineMode = false;
+                    SaveCachedAdminData(data);
+                }
             }));
 
             if (!isConnected)
@@ -189,38 +223,90 @@ public class UserInputManager : MonoBehaviour
 
         if (!isConnected)
         {
-            DisplayConnectionError("No internet connection. Please check your network and try again.");
+            Debug.Log("Failed to load admin data at start. Will use offline mode if cached data is available.");
+            LoadCachedAdminData();
         }
-        else if (adminData == null)
+    }
+
+    public void OnSubmitButtonClicked()
+    {
+        string enteredPasscodeKey = passcodeKeyInputField.text.Trim();
+        string username = usernameInputField.text.Trim();
+        string email = emailInputField.text.Trim();
+
+        Debug.Log($"Entered Passcode: '{enteredPasscodeKey}'");
+
+        signInPage.SetActive(false);
+        loadingPanel.SetActive(true);
+
+        if (isDataLoaded)
         {
-            DisplayConnectionError("Unable to verify passcode. Please try again later.");
+            ValidatePasscode(enteredPasscodeKey);
         }
         else
         {
-            string expectedPasscodeKey = adminData.passcodeKey.Trim();
+            StartCoroutine(RetryAdminDataFetch(enteredPasscodeKey));
+        }
+    }
+
+    private void ValidatePasscode(string enteredPasscodeKey)
+    {
+        if (cachedAdminData != null)
+        {
+            string expectedPasscodeKey = cachedAdminData.passcodeKey.Trim();
             Debug.Log($"Expected Passcode: '{expectedPasscodeKey}'");
 
             if (expectedPasscodeKey.Equals(enteredPasscodeKey, System.StringComparison.OrdinalIgnoreCase))
             {
                 SaveUserData();
-                UpdateUI(adminData);
-                incorrectPasscodeIndicator.gameObject.SetActive(false);
-                loadingPanel.SetActive(false);
-                gamePanel.SetActive(true);
-                PlayParticleEffects();
+
+                if (isOfflineMode)
+                {
+                    DisplayOfflineModeMessage();
+                    // Don't activate the game panel in offline mode
+                    signInPage.SetActive(true);
+                    loadingPanel.SetActive(false);
+                }
+                else
+                {
+                    UpdateUI(cachedAdminData);
+                    incorrectPasscodeIndicator.gameObject.SetActive(false);
+                    loadingPanel.SetActive(false);
+                    gamePanel.SetActive(true);
+                    PlayParticleEffects();
+                }
             }
             else
             {
                 DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
             }
         }
+        else
+        {
+            DisplayConnectionError("No data available. Please check your internet connection and try again.");
+        }
     }
 
-      private void DisplayConnectionError(string message)
+    private IEnumerator RetryAdminDataFetch(string enteredPasscodeKey)
+    {
+        yield return StartCoroutine(GetAdminDataWithRetry(0));
+
+        if (isDataLoaded)
+        {
+            ValidatePasscode(enteredPasscodeKey);
+        }
+        else
+        {
+            DisplayConnectionError("Unable to verify passcode. Please check your internet connection and try again.");
+        }
+    }
+
+    private void DisplayConnectionError(string message)
     {
         loadingPanel.SetActive(false);
         signInPage.SetActive(true);
-        DisplayIncorrectPasscodeMessage(message);
+        incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
+        incorrectPasscodeIndicator.SetActive(true);
     }
 
     private void DisplayIncorrectPasscodeMessage(string message)
@@ -313,9 +399,6 @@ public class UserInputManager : MonoBehaviour
         {
             yield return request.SendWebRequest();
 
-            Debug.Log($"Response Code: {request.responseCode}");
-            Debug.Log($"Raw response: {request.downloadHandler.text}");
-
             if (request.result == UnityWebRequest.Result.Success)
             {
                 string json = request.downloadHandler.text;
@@ -330,70 +413,69 @@ public class UserInputManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("No valid admin data received from the server.");
+                    Debug.Log("No valid admin data received from the server.");
                     callback(null);
                 }
             }
             else
             {
-                Debug.LogError($"Error retrieving admin data: {request.error}");
+                Debug.Log($"Unable to retrieve admin data: {request.error}");
                 callback(null);
             }
         }
     }
 
     private void UpdateUI(AdminData data)
-{
-    drinkCategoryText.text = data.drinkCategory + " WHEEL";
-
-    // Update all sets of spirit text fields
-    foreach (SpiritTextFieldSet textFieldSet in spiritTextFieldSets)
     {
-        if (textFieldSet.spirit1Text != null) textFieldSet.spirit1Text.text = data.spirit1;
-        if (textFieldSet.spirit2Text != null) textFieldSet.spirit2Text.text = data.spirit2;
-        if (textFieldSet.spirit3Text != null) textFieldSet.spirit3Text.text = data.spirit3;
-        if (textFieldSet.spirit4Text != null) textFieldSet.spirit4Text.text = data.spirit4;
-        if (textFieldSet.spirit5Text != null) textFieldSet.spirit5Text.text = data.spirit5;
-    }
+        drinkCategoryText.text = data.drinkCategory + " WHEEL";
 
-    // Update all TMP_Text fields directly within SpiritNamesList
-    foreach (Transform spiritNameTransform in SpiritNamesList)
-    {
-        if (spiritNameTransform.childCount >= 5)
+        // Update all sets of spirit text fields
+        foreach (SpiritTextFieldSet textFieldSet in spiritTextFieldSets)
         {
-            spiritNameTransform.GetChild(0).GetComponent<TMP_Text>().text = data.spirit1;
-            spiritNameTransform.GetChild(1).GetComponent<TMP_Text>().text = data.spirit2;
-            spiritNameTransform.GetChild(2).GetComponent<TMP_Text>().text = data.spirit3;
-            spiritNameTransform.GetChild(3).GetComponent<TMP_Text>().text = data.spirit4;
-            spiritNameTransform.GetChild(4).GetComponent<TMP_Text>().text = data.spirit5;
+            if (textFieldSet.spirit1Text != null) textFieldSet.spirit1Text.text = data.spirit1;
+            if (textFieldSet.spirit2Text != null) textFieldSet.spirit2Text.text = data.spirit2;
+            if (textFieldSet.spirit3Text != null) textFieldSet.spirit3Text.text = data.spirit3;
+            if (textFieldSet.spirit4Text != null) textFieldSet.spirit4Text.text = data.spirit4;
+            if (textFieldSet.spirit5Text != null) textFieldSet.spirit5Text.text = data.spirit5;
+        }
+
+        // Update all TMP_Text fields directly within SpiritNamesList
+        foreach (Transform spiritNameTransform in SpiritNamesList)
+        {
+            if (spiritNameTransform.childCount >= 5)
+            {
+                spiritNameTransform.GetChild(0).GetComponent<TMP_Text>().text = data.spirit1;
+                spiritNameTransform.GetChild(1).GetComponent<TMP_Text>().text = data.spirit2;
+                spiritNameTransform.GetChild(2).GetComponent<TMP_Text>().text = data.spirit3;
+                spiritNameTransform.GetChild(3).GetComponent<TMP_Text>().text = data.spirit4;
+                spiritNameTransform.GetChild(4).GetComponent<TMP_Text>().text = data.spirit5;
+            }
+            else
+            {
+                Debug.LogWarning($"Transform {spiritNameTransform.name} does not have enough children.");
+            }
+        }
+
+        // Deactivate all drink category transforms
+        foreach (var transform in drinkCategoryTransforms)
+        {
+            if (transform != null)
+            {
+                transform.gameObject.SetActive(false);
+            }
+        }
+
+        // Activate the matching drink category transform
+        Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.drinkCategory, System.StringComparison.OrdinalIgnoreCase));
+        if (matchingTransform != null)
+        {
+            matchingTransform.gameObject.SetActive(true);
         }
         else
         {
-            Debug.LogWarning($"Transform {spiritNameTransform.name} does not have enough children.");
+            Debug.LogWarning($"No matching transform found for drink category: {data.drinkCategory}");
         }
     }
-
-    // Deactivate all drink category transforms
-    foreach (var transform in drinkCategoryTransforms)
-    {
-        if (transform != null)
-        {
-            transform.gameObject.SetActive(false);
-        }
-    }
-
-    // Activate the matching drink category transform
-    Transform matchingTransform = drinkCategoryTransforms.Find(t => t.name.Equals(data.drinkCategory, System.StringComparison.OrdinalIgnoreCase));
-    if (matchingTransform != null)
-    {
-        matchingTransform.gameObject.SetActive(true);
-    }
-    else
-    {
-        Debug.LogWarning($"No matching transform found for drink category: {data.drinkCategory}");
-    }
-}
-
 
     [System.Serializable]
     public class AdminData

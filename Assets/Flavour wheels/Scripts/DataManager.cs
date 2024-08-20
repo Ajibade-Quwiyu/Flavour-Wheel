@@ -153,21 +153,36 @@ public class DataManager : MonoBehaviour
 
     public List<string> GetGeneralSortedSpirits(PlayerDataList playerDataList)
     {
-        var spiritScores = new Dictionary<string, float>
+        var spiritScores = new Dictionary<string, float>();
+
+        foreach (var player in playerDataList.items)
         {
-            { playerDataList.items[0].spirit1Name, playerDataList.items[0].spirit1Ratings * playerDataList.items[0].spirit1Flavours },
-            { playerDataList.items[0].spirit2Name, playerDataList.items[0].spirit2Ratings * playerDataList.items[0].spirit2Flavours },
-            { playerDataList.items[0].spirit3Name, playerDataList.items[0].spirit3Ratings * playerDataList.items[0].spirit3Flavours },
-            { playerDataList.items[0].spirit4Name, playerDataList.items[0].spirit4Ratings * playerDataList.items[0].spirit4Flavours },
-            { playerDataList.items[0].spirit5Name, playerDataList.items[0].spirit5Ratings * playerDataList.items[0].spirit5Flavours }
-        };
+            UpdateSpiritScore(spiritScores, player.spirit1Name, player.spirit1Ratings * player.spirit1Flavours);
+            UpdateSpiritScore(spiritScores, player.spirit2Name, player.spirit2Ratings * player.spirit2Flavours);
+            UpdateSpiritScore(spiritScores, player.spirit3Name, player.spirit3Ratings * player.spirit3Flavours);
+            UpdateSpiritScore(spiritScores, player.spirit4Name, player.spirit4Ratings * player.spirit4Flavours);
+            UpdateSpiritScore(spiritScores, player.spirit5Name, player.spirit5Ratings * player.spirit5Flavours);
+        }
 
         return spiritScores.OrderByDescending(pair => pair.Value)
                            .Take(3)
                            .Select(pair => pair.Key)
                            .ToList();
     }
-     // Add these methods to get average ratings and flavours
+    private void UpdateSpiritScore(Dictionary<string, float> spiritScores, string spiritName, float score)
+    {
+        if (string.IsNullOrEmpty(spiritName)) return;
+
+        if (spiritScores.ContainsKey(spiritName))
+        {
+            spiritScores[spiritName] += score;
+        }
+        else
+        {
+            spiritScores[spiritName] = score;
+        }
+    }
+    // Add these methods to get average ratings and flavours
     public float GetAverageRating(int index)
     {
         // Implement this method to return the average rating for the spirit at the given index
@@ -185,10 +200,9 @@ public class DataManager : MonoBehaviour
     // ... (rest of the methods remain the same)
 
     // Call this method when you want to update the UI
-     public void UpdateUIWithLocalSortedSpirits(UIManager uiManager)
+    public void UpdateUIWithLocalSortedSpirits(UIManager uiManager)
     {
-        var localSortedSpirits = GetLocalSortedSpirits();
-        uiManager.UpdateLocalTopThree(localSortedSpirits);
+        uiManager.UpdateTopThreeSpirits();
     }
 
     public string GetSpiritName(int index)

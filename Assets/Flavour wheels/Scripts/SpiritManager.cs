@@ -140,7 +140,7 @@ public class SpiritManager : MonoBehaviour
             var generalSortedSpirits = dataManager.GetGeneralSortedSpirits(updatedPlayerDataList);
 
             // Update both local and general top three spirits
-            uiManager.UpdateTopThreeSpirits(localSortedSpirits, generalSortedSpirits);
+            uiManager.UpdateTopThreeSpirits();
 
             onSuccess?.Invoke();
         },

@@ -9,7 +9,7 @@ public class IntroManager : MonoBehaviour
     public GameObject GameStart;
     public GameObject ReloadButton;
     public GameObject[] Others;
-
+    UserInputManager userInputManager;
     private VideoPlayer videoPlayer;
     private static bool shouldPlayVideoOnReload = true; // Static variable
 
@@ -24,6 +24,9 @@ public class IntroManager : MonoBehaviour
 
         // Start playing the video immediately since we are not checking the connection
         PlayVideo();
+        userInputManager = FindAnyObjectByType<UserInputManager>();
+        userInputManager.StartMethod();
+
     }
 
     void PlayVideo()
@@ -73,7 +76,6 @@ public class IntroManager : MonoBehaviour
 
     public void ReloadSceneWithoutPlayingVideo()
     {
-        shouldPlayVideoOnReload = false;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

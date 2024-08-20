@@ -13,7 +13,8 @@ public class UIManager : MonoBehaviour
     // UI elements for displaying flavour data in table format.
     public Transform FlavourTable1;
     public Transform FlavourTable2;
-
+    private Dictionary<string, int> spiritRanks = new Dictionary<string, int>();
+    private List<string> spiritNames = new List<string>();
     // Prefab used to create rows in FlavourTable1.
     public GameObject flavourRowPrefab;
 
@@ -117,7 +118,7 @@ public class UIManager : MonoBehaviour
             Debug.Log($"Set {debugPrefix}TopThree[{i}] to {spiritName}");
         }
     }
-public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData, float[] averageRatings, float[] averageFlavours)
+    public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData, float[] averageRatings, float[] averageFlavours)
     {
         if (FlavourTable2 == null)
         {
@@ -127,6 +128,8 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
 
         Debug.Log("Starting comprehensive update of FlavourTable2");
 
+        this.spiritNames = new List<string>(spiritNames); // Store the received spirit names
+
         UpdateLocalData(spiritNames, spiritData);
         UpdateAverageData(averageRatings, averageFlavours);
         UpdateMultipliedValues();
@@ -134,7 +137,7 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
 
         Debug.Log("FlavourTable2 update completed");
     }
- private void UpdateMultipliedValues()
+    private void UpdateMultipliedValues()
     {
         Debug.Log("Updating FlavourTable2 multiplied values");
 
@@ -205,14 +208,44 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
         }
     }
 
-     public void UpdateRankings()
+    private List<string> GetSpiritNames()
+    {
+        List<string> names = new List<string>();
+        Transform spiritsTransform = FlavourTable2.parent.Find("Spirits");
+
+        if (spiritsTransform != null)
+        {
+            for (int i = 0; i < spiritsTransform.childCount; i++)
+            {
+                TMP_Text tmpText = spiritsTransform.GetChild(i).GetComponent<TMP_Text>();
+                if (tmpText != null)
+                {
+                    names.Add(tmpText.text);
+                }
+                else
+                {
+                    Debug.LogWarning($"TMP_Text component not found on child {i} of Spirits transform");
+                }
+            }
+        }
+        else
+        {
+            Debug.LogError("Spirits transform not found as a sibling of FlavourTable2");
+        }
+
+        return names;
+    }
+
+    public void UpdateRankings()
     {
         Debug.Log("Updating FlavourTable2 rankings");
 
+        List<string> spiritNames = GetSpiritNames();
         Transform multipliedTransform = FlavourTable2.GetChild(4);
         Transform ranksTransform = FlavourTable2.GetChild(5);
 
         float[] multipliedValues = new float[5];
+
         for (int i = 0; i < 5; i++)
         {
             multipliedValues[i] = float.Parse(GetText(multipliedTransform.GetChild(i)));
@@ -222,35 +255,62 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
                                       .OrderByDescending(i => multipliedValues[i])
                                       .ToArray();
 
+        spiritRanks.Clear();
+
         for (int i = 0; i < multipliedValues.Length; i++)
         {
             int rank = System.Array.IndexOf(sortedIndices, i) + 1;
             string rankText = GetRankString(rank);
 
-            Debug.Log($"Setting rank for spirit {i}: {rankText}");
-            SetText(ranksTransform.GetChild(i), rankText);
-            Debug.Log($"Rank after set: {GetText(ranksTransform.GetChild(i))}");
+            if (i < spiritNames.Count)
+            {
+                string spiritName = spiritNames[i];
+
+                if (!spiritRanks.ContainsKey(spiritName))
+                {
+                    spiritRanks[spiritName] = rank;
+                    Debug.Log($"Setting rank for spirit {spiritName}: {rankText}");
+                }
+                else
+                {
+                    Debug.LogWarning($"Duplicate spirit name found: {spiritName}. Keeping the first occurrence.");
+                }
+
+                SetText(ranksTransform.GetChild(i), rankText);
+                Debug.Log($"Rank after set: {GetText(ranksTransform.GetChild(i))}");
+            }
+            else
+            {
+                Debug.LogWarning($"No spirit name found for index {i}");
+            }
         }
-    }
-     public void UpdateLocalTopThree(List<DataManager.SpiritInfo> sortedSpirits)
-    {
-        for (int i = 0; i < localTopThree.childCount; i++)
-        {
-            string spiritName = i < sortedSpirits.Count ? sortedSpirits[i].Name : string.Empty;
-            SetText(localTopThree.GetChild(i), spiritName);
-        }
+
+        UpdateGeneralTopThree();
     }
 
-    public void UpdateGeneralTopThree(List<string> sortedSpirits)
+    private void UpdateGeneralTopThree()
     {
+        var sortedSpirits = spiritRanks.OrderBy(pair => pair.Value).Take(3).Select(pair => pair.Key).ToList();
+
         for (int i = 0; i < generalTopThree.childCount; i++)
         {
             string spiritName = i < sortedSpirits.Count ? sortedSpirits[i] : string.Empty;
             SetText(generalTopThree.GetChild(i), spiritName);
+            Debug.Log($"Set generalTopThree[{i}] to {spiritName}");
+        }
+    }
+    private void UpdateLocalTopThree()
+    {
+        var localSortedSpirits = spiritRanks.OrderBy(pair => pair.Value).Take(3).Select(pair => pair.Key).ToList();
+        for (int i = 0; i < localTopThree.childCount; i++)
+        {
+            string spiritName = i < localSortedSpirits.Count ? localSortedSpirits[i] : string.Empty;
+            SetText(localTopThree.GetChild(i), spiritName);
+            Debug.Log($"Set localTopThree[{i}] to {spiritName}");
         }
     }
 
-   public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
+    public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
 {
     if (FlavourTable2 == null)
     {
@@ -444,9 +504,9 @@ public void UpdateFlavourTable2(List<string> spiritNames, Dictionary<string, Dat
     }
 
     // This method is what DataManager calls to update the top three spirits in UIManager
-      public void UpdateTopThreeSpirits(List<DataManager.SpiritInfo> localSortedSpirits, List<string> generalSortedSpirits)
+    public void UpdateTopThreeSpirits()
     {
-        UpdateLocalTopThree(localSortedSpirits);
-        UpdateGeneralTopThree(generalSortedSpirits);
+        UpdateRankings(); // This will update spiritRanks and call UpdateGeneralTopThree
+        UpdateLocalTopThree();
     }
 }
