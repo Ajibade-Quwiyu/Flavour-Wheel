@@ -23,6 +23,8 @@ public class SpiritManager : MonoBehaviour
     private Coroutine repeatUpdateCoroutine;
     private bool isFirstLoadComplete = false;
 
+    private bool isReturningToOverallRating = false;
+
     private void Start()
     {
         Debug.Log("SpiritManager: Start method called");
@@ -87,7 +89,7 @@ public class SpiritManager : MonoBehaviour
             isDataProcessedSuccessfully = true;
         }));
 
-        if (isDataProcessedSuccessfully)
+        if (isDataProcessedSuccessfully && !isReturningToOverallRating)
         {
             loadingPanel.SetActive(false);
             resultPanel.SetActive(true);
@@ -99,7 +101,7 @@ public class SpiritManager : MonoBehaviour
                 repeatUpdateCoroutine = StartCoroutine(RepeatUpdateProcess());
             }
         }
-        else
+        else if (!isReturningToOverallRating)
         {
             loadingPanel.SetActive(false);
             overallRatingPanel.SetActive(true);
@@ -236,9 +238,11 @@ public class SpiritManager : MonoBehaviour
 
     public void ReturnToOverallRating()
     {
+        isReturningToOverallRating = true;
+        StopRepeatUpdateProcess();
         resultPanel.SetActive(false);
         overallRatingPanel.SetActive(true);
-        StopRepeatUpdateProcess();
+        isReturningToOverallRating = false;
     }
 
     private void OnDisable()

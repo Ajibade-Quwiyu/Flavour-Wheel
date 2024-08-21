@@ -5,12 +5,12 @@ using System.Collections;
 
 public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 {
-    public RectTransform[] mainPanels; // Array of main UI panels
-    public RectTransform[] pointerGraphics; // Array of pointer graphics
-    public RectTransform[] indicatorDots; // Array of indicator dots
-    public float swipeThreshold = 0.2f; // Minimum swipe distance to trigger change
-    public float transitionSpeed = 5f; // Speed of the transition between panels
-    public float scaleTransitionSpeed = 10f; // Speed of scaling transition
+    public RectTransform[] mainPanels;
+    public RectTransform[] pointerGraphics;
+    public RectTransform[] indicatorDots;
+    public float swipeThreshold = 0.2f;
+    public float transitionSpeed = 5f;
+    public float scaleTransitionSpeed = 10f;
 
     private int currentMainPanelIndex = 0;
     private int currentPointerIndex = 0;
@@ -25,12 +25,16 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     [SerializeField]
     public LastImageSwipedEvent onLastImageSwiped;
 
+    private RectTransform canvasRectTransform;
+
     private void Start()
     {
+        canvasRectTransform = GetComponentInParent<Canvas>().GetComponent<RectTransform>();
         EnsureCanvasGroupComponents();
         UpdatePanelPositions();
         UpdatePointerGraphics();
         UpdateIndicatorDots();
+        UpdateActiveMainPanelSiblingIndex();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -39,7 +43,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         {
             if (eventData.pressPosition.y <= Screen.height / 4)
             {
-                startPosition = eventData.pressPosition;
+                startPosition = eventData.position;
                 isSwiping = true;
             }
             else
@@ -49,9 +53,11 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         }
 
         Vector2 delta = eventData.position - startPosition;
+        float normalizedDelta = delta.x / canvasRectTransform.rect.width;
+
         for (int i = 0; i < pointerGraphics.Length; i++)
         {
-            pointerGraphics[i].anchoredPosition += new Vector2(delta.x, 0);
+            pointerGraphics[i].anchoredPosition += new Vector2(normalizedDelta * pointerGraphics[i].rect.width, 0);
         }
 
         startPosition = eventData.position;
@@ -65,8 +71,8 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         }
 
         isSwiping = false;
-        float distance = eventData.pressPosition.x - eventData.position.x;
-        if (Mathf.Abs(distance) >= swipeThreshold * Screen.width)
+        float distance = (eventData.pressPosition.x - eventData.position.x) / canvasRectTransform.rect.width;
+        if (Mathf.Abs(distance) >= swipeThreshold)
         {
             if (distance > 0 && currentPointerIndex < pointerGraphics.Length - 1)
             {
@@ -99,6 +105,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 
         onLastImageSwiped?.Invoke();
     }
+
     private void UpdateIndicatorDots()
     {
         for (int i = 0; i < indicatorDots.Length; i++)
@@ -109,10 +116,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
                 canvasGroup = indicatorDots[i].gameObject.AddComponent<CanvasGroup>();
             }
 
-            // Calculate the corresponding pointer index for each dot
             int correspondingPointerIndex = Mathf.RoundToInt((float)i / (indicatorDots.Length - 1) * (pointerGraphics.Length - 1));
-
-            // Highlight the dot if it corresponds to the current pointer index
             canvasGroup.alpha = (correspondingPointerIndex == currentPointerIndex) ? 1f : 0.5f;
         }
     }
@@ -121,16 +125,19 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         for (int i = 0; i < mainPanels.Length; i++)
         {
+            Vector2 targetPosition;
             if (i == currentMainPanelIndex)
             {
-                StartCoroutine(MovePanel(mainPanels[i], new Vector2(0, mainPanels[i].anchoredPosition.y)));
+                targetPosition = Vector2.zero;
             }
             else
             {
-                float targetX = (i < currentMainPanelIndex) ? -Screen.width : Screen.width;
-                StartCoroutine(MovePanel(mainPanels[i], new Vector2(targetX, mainPanels[i].anchoredPosition.y)));
+                float targetX = (i < currentMainPanelIndex) ? -1 : 1;
+                targetPosition = new Vector2(targetX * canvasRectTransform.rect.width, 0);
             }
+            StartCoroutine(MovePanel(mainPanels[i], targetPosition));
         }
+        UpdateActiveMainPanelSiblingIndex();
     }
 
     private void UpdatePointerGraphics()
@@ -148,25 +155,26 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
                     canvasGroup.alpha = i == currentPointerIndex ? 1f : 0.5f;
                 }
 
-                // Start scaling coroutine
                 StartCoroutine(ScalePointerGraphic(pointerGraphics[i], i == currentPointerIndex ? activeScale : inactiveScale));
             }
         }
-         IEnumerator ScalePointerGraphic(RectTransform graphic, Vector3 targetScale)
-        {
-            Vector3 startScale = graphic.localScale;
-            float elapsedTime = 0f;
-
-            while (elapsedTime < 1f / scaleTransitionSpeed)
-            {
-                graphic.localScale = Vector3.Lerp(startScale, targetScale, elapsedTime * scaleTransitionSpeed);
-                elapsedTime += Time.deltaTime;
-                yield return null;
-            }
-
-            graphic.localScale = targetScale;
-        }
     }
+
+    private IEnumerator ScalePointerGraphic(RectTransform graphic, Vector3 targetScale)
+    {
+        Vector3 startScale = graphic.localScale;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < 1f / scaleTransitionSpeed)
+        {
+            graphic.localScale = Vector3.Lerp(startScale, targetScale, elapsedTime * scaleTransitionSpeed);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        graphic.localScale = targetScale;
+    }
+
     private void UpdateMainPanel()
     {
         currentMainPanelIndex = currentPointerIndex;
@@ -175,9 +183,11 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
 
     private void ResetPointerPositions()
     {
+        float pointerWidth = canvasRectTransform.rect.width / 3;
         for (int i = 0; i < pointerGraphics.Length; i++)
         {
-            pointerGraphics[i].anchoredPosition = new Vector2((i - currentPointerIndex) * Screen.width / 3, pointerGraphics[i].anchoredPosition.y);
+            Vector2 targetPosition = new Vector2((i - currentPointerIndex) * pointerWidth, 0);
+            StartCoroutine(MovePanel(pointerGraphics[i], targetPosition));
         }
     }
 
@@ -211,5 +221,20 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
             yield return null;
         }
         panel.anchoredPosition = targetPosition;
+    }
+
+    private void UpdateActiveMainPanelSiblingIndex()
+    {
+        if (mainPanels.Length > 0 && currentMainPanelIndex >= 0 && currentMainPanelIndex < mainPanels.Length)
+        {
+            RectTransform activePanel = mainPanels[currentMainPanelIndex];
+            Transform parentTransform = activePanel.parent;
+
+            if (parentTransform != null)
+            {
+                // Set the active panel as the last sibling
+                activePanel.SetAsLastSibling();
+            }
+        }
     }
 }

@@ -61,8 +61,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Flavour wheels\Scripts\UIManager.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\CameraViewportHandler.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\AdminManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UIToggleState.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\AnchorGameObject.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelDataRecorder.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\RotationAndZoomController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UserInputManager.cs" />
