@@ -3,36 +3,29 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Linq;
 
 [System.Serializable]
 public class ChildHierarchy
 {
     public Image image;
-    public List<ChildHierarchy> children;
-
-    public ChildHierarchy()
-    {
-        children = new List<ChildHierarchy>();
-    }
+    public List<ChildHierarchy> children = new List<ChildHierarchy>();
 }
 
 public class FlavorWheelController : MonoBehaviour
-
 {
-    private ChildHierarchy hierarchy; // Root hierarchy for images
-    private Dictionary<Image, Vector3> originalScales = new Dictionary<Image, Vector3>(); // Store original scales of images
-    private HashSet<Image> scaledLastHierarchyImages = new HashSet<Image>(); // Store scaled images in the last hierarchy
-    private Image currentImage = null;
-    private int currentNumber = 0;
-    public TMP_Text numberText;  // Reference to your TMP_Text component
-    public float animationDuration = 1f; // Duration of the animation
-    public float endpos = 50f; // Duration of the animation
-
-   
+    private ChildHierarchy hierarchy;
+    private Dictionary<Image, Vector3> originalScales = new Dictionary<Image, Vector3>();
+    private int currentNumber;
+    public TMP_Text numberText; public float animationDuration = 1f, endpos = 50f;
+    private Color darkenColor = new Color(0.35f, 0.35f, 0.35f, 1f), doubleClickColor = Color.yellow;
+    private float doubleClickTime = 0.3f, lastClickTime;
+    private bool isDoubleClick;
+    public FlavorWheelDataRecorder dataRecorder;
+    public AudioClip clickClip, doubleClickClip; private AudioSource audioSource;
 
     public void Select(int increment = 1)
     {
-        Debug.Log("called");
         currentNumber += increment;
         UpdateNumberText();
         StartCoroutine(AnimateNumber("+" + increment));
@@ -40,7 +33,6 @@ public class FlavorWheelController : MonoBehaviour
 
     public void Unselect()
     {
-        Debug.Log("uncalled");
         currentNumber -= 1;
         UpdateNumberText();
         StartCoroutine(AnimateNumber("-1"));
@@ -52,161 +44,97 @@ public class FlavorWheelController : MonoBehaviour
     }
 
     private IEnumerator AnimateNumber(string changeText)
-{
-    // Instantiate the duplicated TMP_Text object
-    TMP_Text changeTMP = Instantiate(numberText, numberText.transform.parent);
-
-    // Set the text of the duplicated object
-    changeTMP.text = changeText;
-
-    // Set the duplicated object to active so it can display the animation
-    changeTMP.gameObject.SetActive(true);
-
-    // Set the position of the duplicated object to match the original
-    changeTMP.transform.localPosition = numberText.transform.localPosition;
-
-    float elapsed = 0f;
-    while (elapsed < animationDuration)
     {
-        elapsed += Time.deltaTime;
-        changeTMP.transform.localPosition = Vector3.Lerp(changeTMP.transform.localPosition, new Vector3(changeTMP.transform.localPosition.x, endpos, changeTMP.transform.localPosition.z), elapsed / animationDuration);
-        yield return null;
+        TMP_Text changeTMP = Instantiate(numberText, numberText.transform.parent);
+        changeTMP.text = changeText;
+        changeTMP.gameObject.SetActive(true);
+        changeTMP.transform.localPosition = numberText.transform.localPosition;
+
+        float elapsed = 0f;
+        Vector3 targetPos = new Vector3(changeTMP.transform.localPosition.x, endpos, changeTMP.transform.localPosition.z);
+
+        while (elapsed < animationDuration)
+        {
+            elapsed += Time.deltaTime;
+            changeTMP.transform.localPosition = Vector3.Lerp(changeTMP.transform.localPosition, targetPos, elapsed / animationDuration);
+            yield return null;
+        }
+
+        Destroy(changeTMP.gameObject);
     }
-
-    // Destroy the duplicated object after the animation is complete
-    Destroy(changeTMP.gameObject);
-}
-
- // Currently selected image
-    private Color darkenColor = new Color(0.35f, 0.35f, 0.35f, 1f); // Color to darken images
-    private Color doubleClickColor = Color.yellow; // Color to indicate double-clicked images
-
-    private float doubleClickTime = 0.3f; // Time interval for double-click detection
-    private float lastClickTime = 0f; // Time of the last click
-    private bool isDoubleClick = false; // Flag for double-click detection
-
-    public FlavorWheelDataRecorder dataRecorder; // Reference to the associated FlavorWheelDataRecorder
-
-    // Audio clips for click and double click
-    public AudioClip clickClip;
-    public AudioClip doubleClickClip;
-    private AudioSource audioSource; // Audio source for playing clips
 
     void Start()
     {
-        // Automatically populate the hierarchy
         hierarchy = new ChildHierarchy { image = GetComponent<Image>() };
         PopulateHierarchy(transform, hierarchy);
-
-        // Apply darken and disable to all children from the start
         ApplyDarkenAndDisableToHierarchy(hierarchy.children);
         UpdateNumberText();
-        // Get the AudioSource from the Camera
+
         audioSource = Camera.main.GetComponent<AudioSource>();
-        if (audioSource == null)
-        {
-            Debug.LogError("AudioSource not found on the Camera.");
-        }
     }
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
-        {
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+        if (!Input.GetMouseButtonDown(0)) return;
 
-            if (hit.collider != null)
-            {
-                Image image = hit.collider.GetComponent<Image>();
-                if (image != null && IsPartOfHierarchy(image))
-                {
-                    float timeSinceLastClick = Time.time - lastClickTime;
-                    if (timeSinceLastClick <= doubleClickTime)
-                    {
-                        isDoubleClick = true;
-                        HandleDoubleClick(image);
-                    }
-                    else
-                    {
-                        isDoubleClick = false;
-                        StartCoroutine(HandleSingleClick(image));
-                    }
-                    lastClickTime = Time.time;
-                }
-            }
+        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+
+        if (hit.collider?.GetComponent<Image>() is Image image && IsPartOfHierarchy(image))
+        {
+            float timeSinceLastClick = Time.time - lastClickTime;
+            isDoubleClick = timeSinceLastClick <= doubleClickTime;
+
+            if (isDoubleClick)
+                HandleDoubleClick(image);
+            else
+                StartCoroutine(HandleSingleClick(image));
+
+            lastClickTime = Time.time;
         }
     }
 
-    // Handle single click with delay to differentiate from double-click
-   private IEnumerator HandleSingleClick(Image image)
-{
-    yield return new WaitForSeconds(doubleClickTime);
-
-    if (!isDoubleClick)
+    private IEnumerator HandleSingleClick(Image image)
     {
-        ToggleImageState(image);
-        PlayClickSound(); // Play click sound for normal clicks
-    }
-}
-    // Handle double-click interactions
-   private void HandleDoubleClick(Image image)
-{
-    if (IsGrandchild(image))
-    {
-        Select(2);  // Increment by 2 for double click on grandchild
-        ScaleImage(image, true); // Always scale on double click
-        ApplyDoubleClickIndicator(image); // Apply visual indicator for double-clicked images
-
-        // Record the flavor and its parent in the data recorder
-        if (dataRecorder != null)
+        yield return new WaitForSeconds(doubleClickTime);
+        if (!isDoubleClick)
         {
-            dataRecorder.RecordFlavor(image.name, image.transform.parent?.name);
-        }
-
-        PlayDoubleClickSound(); // Play double-click sound
-        Vibrate(); // Cause vibration on double click
-    }
-}
-
-    // Play click sound for normal clicks
-    private void PlayClickSound()
-    {
-        if (audioSource != null && clickClip != null)
-        {
-            audioSource.PlayOneShot(clickClip);
+            ToggleImageState(image);
+            PlayClickSound();
         }
     }
 
-    // Play double-click sound
-    private void PlayDoubleClickSound()
+    private void HandleDoubleClick(Image image)
     {
-        if (audioSource != null && doubleClickClip != null)
-        {
-            audioSource.PlayOneShot(doubleClickClip);
-        }
-    }
+        if (!IsGrandchild(image)) return;
 
-    // Cause vibration on double-click
-    private void Vibrate()
-    {
+        Select(2);
+        ScaleImage(image, true);
+        ApplyDoubleClickIndicator(image);
+
+        dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name);
+
+        PlayDoubleClickSound();
         Handheld.Vibrate();
     }
+    private void PlayClickSound()
+    {
+        audioSource.PlayOneShot(clickClip);
+    }
+    private void PlayDoubleClickSound()
+    {
+        audioSource.PlayOneShot(doubleClickClip);
+    }
 
-    // Check if the image is a grandchild (leaf node)
     private bool IsGrandchild(Image image)
     {
         var hierarchy = FindHierarchy(image);
         return hierarchy != null && FindParentHierarchyRecursive(this.hierarchy, image) != null && hierarchy.children.Count == 0;
     }
-
-    // Check if the image is part of the hierarchy
     private bool IsPartOfHierarchy(Image image)
     {
         return FindHierarchy(image) != null;
     }
-
-    // Populate the hierarchy recursively
     private void PopulateHierarchy(Transform parent, ChildHierarchy parentHierarchy)
     {
         foreach (Transform child in parent)
@@ -221,202 +149,123 @@ public class FlavorWheelController : MonoBehaviour
         }
     }
 
-    // Toggle the state of an image
-   private void ToggleImageState(Image image)
-{
-    if (image == null)
+    private void ToggleImageState(Image image)
     {
-        return;
+        if (image == null) return;
+
+        if (image.color == doubleClickColor)
+        {
+            UnselectImage(image);
+        }
+        else
+        {
+            SelectImage(image);
+        }
     }
 
-    if (image.color == doubleClickColor) // Image is currently selected, so unselect it
+    private void UnselectImage(Image image)
     {
-        bool anySiblingSelected = false;
-        Transform parent = image.transform.parent;
-        foreach (Transform sibling in parent)
-        {
-            Image siblingImage = sibling.GetComponent<Image>();
-            if (siblingImage != image && siblingImage != null && siblingImage.color == doubleClickColor)
-            {
-                anySiblingSelected = true;
-                break;
-            }
-        }
+        bool anySiblingSelected = image.transform.parent.GetComponentsInChildren<Image>()
+            .Any(siblingImage => siblingImage != image && siblingImage.color == doubleClickColor);
 
-        // Determine if the parent should be removed based on siblings' selection status
-        bool removeParent = !anySiblingSelected;
-        if (dataRecorder != null)
-        {
-            dataRecorder.UnrecordFlavor(image.name, image.transform.parent?.name, removeParent);
-        }
+        dataRecorder?.UnrecordFlavor(image.name, image.transform.parent?.name, !anySiblingSelected);
         RemoveDoubleClickIndicator(image);
-        ScaleImage(image, false); // Unscale on unselect
-        Unselect(); // Decrement the counter by 1
+        ScaleImage(image, false);
+        Unselect();
     }
-    else // Image is not selected, so select it
+
+    private void SelectImage(Image image)
     {
         var hierarchy = FindHierarchy(image);
-        if (hierarchy != null)
+        if (hierarchy == null) return;
+
+        if (!IsGrandchild(image))
         {
-            if (!IsGrandchild(image)) // If it's not a grandchild, apply selection logic to parents and children
-            {
-                DisableSiblingsOfParent(image); // Disable siblings of the parent
-                EnableImage(image); // Enable itself and its children
-                foreach (var childHierarchy in hierarchy.children)
-                {
-                    EnableImage(childHierarchy.image);
-                }
-            }
-            else // If it's a grandchild, handle single selection
-            {
-                ScaleImage(image, false); // Handle scaling of grandchild on single click
-                RemoveDoubleClickIndicator(image); // Remove visual indicator if previously double-clicked
-                Select(1); // Increment the counter by 1 for single click on grandchild
-            }
+            DisableSiblingsOfParent(image);
+            EnableImage(image);
+            hierarchy.children.ForEach(child => EnableImage(child.image));
+        }
+        else
+        {
+            ScaleImage(image, false);
+            RemoveDoubleClickIndicator(image);
+            Select(1);
         }
     }
-}
 
-
-    // Disable siblings of the parent image
     private void DisableSiblingsOfParent(Image image)
     {
-        var parentHierarchy = FindParentHierarchy(image);
-        if (parentHierarchy != null)
-        {
-            foreach (var sibling in parentHierarchy.children)
-            {
-                if (sibling.image != image)
-                {
-                    DarkenAndDisable(sibling.image);
-                }
-            }
-        }
+        FindParentHierarchy(image)?.children
+            .Where(sibling => sibling.image != image)
+            .ToList()
+            .ForEach(sibling => DarkenAndDisable(sibling.image));
     }
 
-    // Find the parent hierarchy of an image
-    private ChildHierarchy FindParentHierarchy(Image image)
-    {
-        return FindParentHierarchyRecursive(this.hierarchy, image);
-    }
+    private ChildHierarchy FindParentHierarchy(Image image) =>
+        FindParentHierarchyRecursive(hierarchy, image);
 
-    // Recursively find the parent hierarchy
     private ChildHierarchy FindParentHierarchyRecursive(ChildHierarchy parent, Image image)
     {
-        foreach (var child in parent.children)
-        {
-            if (child.image == image)
-            {
-                return parent;
-            }
-
-            var result = FindParentHierarchyRecursive(child, image);
-            if (result != null)
-            {
-                return result;
-            }
-        }
-        return null;
+        return parent.children.FirstOrDefault(child => child.image == image) != null
+            ? parent
+            : parent.children.Select(child => FindParentHierarchyRecursive(child, image))
+                             .FirstOrDefault(result => result != null);
     }
 
-    // Apply darken and disable to hierarchy recursively
     private void ApplyDarkenAndDisableToHierarchy(List<ChildHierarchy> children)
     {
-        foreach (var childHierarchy in children)
+        children.ForEach(child =>
         {
-            DarkenAndDisable(childHierarchy.image);
-            ApplyDarkenAndDisableToHierarchy(childHierarchy.children);
-        }
+            DarkenAndDisable(child.image);
+            ApplyDarkenAndDisableToHierarchy(child.children);
+        });
     }
-
-    // Darken and disable an image
     private void DarkenAndDisable(Image image)
     {
-        if (image != null)
-        {
-            image.color = darkenColor;
-            Collider2D collider = image.GetComponent<Collider2D>();
-            if (collider != null)
-            {
-                collider.enabled = false;
-            }
-        }
+        if (image == null) return;
+        image.color = darkenColor;
+        image.GetComponent<Collider2D>().enabled = false;
     }
 
-    // Enable an image
     private void EnableImage(Image image)
     {
-        if (image != null)
-        {
-            image.color = Color.white;
-            Collider2D collider = image.GetComponent<Collider2D>();
-            if (collider != null)
-            {
-                collider.enabled = true;
-            }
-        }
+        if (image == null) return;
+        image.color = Color.white;
+        image.GetComponent<Collider2D>().enabled = true;
     }
 
-    // Scale an image up or down
     private void ScaleImage(Image image, bool alwaysScaleUp)
     {
-        if (image != null)
-        {
-            if (!originalScales.ContainsKey(image))
-            {
-                originalScales[image] = image.rectTransform.localScale;
-            }
-            if (alwaysScaleUp || image.rectTransform.localScale == originalScales[image])
-            {
-                image.rectTransform.localScale = originalScales[image] * 1.2f; // Scale up by 20%
-            }
-            else
-            {
-                image.rectTransform.localScale = originalScales[image]; // Revert to original scale
-            }
-        }
+        if (image == null) return;
+
+        if (!originalScales.ContainsKey(image))
+            originalScales[image] = image.rectTransform.localScale;
+
+        image.rectTransform.localScale = (alwaysScaleUp || image.rectTransform.localScale == originalScales[image])
+            ? originalScales[image] * 1.2f
+            : originalScales[image];
     }
 
-    // Apply double-click indicator to an image
     private void ApplyDoubleClickIndicator(Image image)
     {
-        if (image != null)
-        {
-            image.color = doubleClickColor; // Change color to indicate double-click
-        }
+        if (image != null) image.color = doubleClickColor;
     }
 
-    // Remove double-click indicator from an image
     private void RemoveDoubleClickIndicator(Image image)
     {
-        if (image != null && originalScales.ContainsKey(image) && image.rectTransform.localScale == originalScales[image] * 1.2f)
+        if (image != null && originalScales.TryGetValue(image, out var originalScale)
+            && image.rectTransform.localScale == originalScale * 1.2f)
         {
-            image.color = Color.white; // Revert color if scaled by single click
+            image.color = Color.white;
         }
     }
 
-    // Find the hierarchy of an image
-    private ChildHierarchy FindHierarchy(Image image)
-    {
-        return FindHierarchyRecursive(hierarchy, image);
-    }
+    private ChildHierarchy FindHierarchy(Image image) => FindHierarchyRecursive(hierarchy, image);
 
-    // Recursively find the hierarchy of an image
     private ChildHierarchy FindHierarchyRecursive(ChildHierarchy hierarchy, Image image)
     {
-        if (hierarchy.image == image)
-        {
-            return hierarchy;
-        }
-
-        foreach (var childHierarchy in hierarchy.children)
-        {
-            var foundHierarchy = FindHierarchyRecursive(childHierarchy, image);
-            if (foundHierarchy != null)
-            {
-                return foundHierarchy;
-            }
-        }
-        return null;
+        if (hierarchy.image == image) return hierarchy;
+        return hierarchy.children.Select(child => FindHierarchyRecursive(child, image))
+                                 .FirstOrDefault(found => found != null);
     }
 }

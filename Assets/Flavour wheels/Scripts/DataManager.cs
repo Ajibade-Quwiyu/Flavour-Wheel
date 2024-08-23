@@ -9,200 +9,122 @@ public class DataManager : MonoBehaviour
     public class SpiritInfo
     {
         public string Name;
-        public int SelectedFlavors;
-        public int Rating;
-
-        public SpiritInfo(string name, int selectedFlavors = 0, int rating = 0)
-        {
-            Name = name;
-            SelectedFlavors = selectedFlavors;
-            Rating = rating;
-        }
+        public int SelectedFlavors, Rating;
+        public SpiritInfo(string name, int selectedFlavors = 0, int rating = 0) =>
+            (Name, SelectedFlavors, Rating) = (name, selectedFlavors, rating);
     }
 
     public Dictionary<string, SpiritInfo> spiritData = new Dictionary<string, SpiritInfo>();
     public List<string> spiritNames = new List<string>();
+    private const string playerEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel", UserIdKey = "UserId";
 
-    private const string playerEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel";
-    private const string UserIdKey = "UserId";
 
     public IEnumerator FetchPlayerData(System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
     {
-        using (UnityWebRequest request = UnityWebRequest.Get(playerEndpoint))
+        using UnityWebRequest request = UnityWebRequest.Get(playerEndpoint);
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
         {
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                string json = request.downloadHandler.text;
-                PlayerDataList playerDataList = JsonUtility.FromJson<PlayerDataList>($"{{\"items\":{json}}}");
-                if (playerDataList != null && playerDataList.items != null)
-                {
-                    onSuccess?.Invoke(playerDataList);
-                }
-                else
-                {
-                    onError?.Invoke("Failed to parse player data from server response.");
-                }
-            }
+            PlayerDataList playerDataList = JsonUtility.FromJson<PlayerDataList>($"{{\"items\":{request.downloadHandler.text}}}");
+            if (playerDataList?.items != null)
+                onSuccess?.Invoke(playerDataList);
             else
-            {
-                onError?.Invoke(request.error);
-            }
+                onError?.Invoke("Failed to parse player data from server response.");
         }
+        else
+            onError?.Invoke(request.error);
     }
-
     public IEnumerator SaveAndFetchUpdatedData(PlayerData updatedData, System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
     {
         int userId = GetUserId();
-        string jsonData = JsonUtility.ToJson(updatedData);
         string url = userId == 0 ? playerEndpoint : $"{playerEndpoint}/{userId}";
-        string method = userId == 0 ? "POST" : "PUT";
+        using UnityWebRequest request = new UnityWebRequest(url, userId == 0 ? "POST" : "PUT");
+        request.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(updatedData)));
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        yield return request.SendWebRequest();
 
-        using (UnityWebRequest request = new UnityWebRequest(url, method))
+        if (request.result == UnityWebRequest.Result.Success)
         {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                if (userId == 0)
-                {
-                    PlayerData createdPlayer = JsonUtility.FromJson<PlayerData>(request.downloadHandler.text);
-                    SaveUserId(createdPlayer.id);
-                }
-
-                yield return FetchPlayerData(onSuccess, onError);
-            }
-            else if (request.responseCode == 404 && userId != 0)
-            {
-                SaveUserId(0);
-                yield return SaveAndFetchUpdatedData(updatedData, onSuccess, onError);
-            }
-            else
-            {
-                onError?.Invoke(request.error);
-            }
+            if (userId == 0)
+                SaveUserId(JsonUtility.FromJson<PlayerData>(request.downloadHandler.text).id);
+            yield return FetchPlayerData(onSuccess, onError);
         }
+        else if (request.responseCode == 404 && userId != 0)
+        {
+            SaveUserId(0);
+            yield return SaveAndFetchUpdatedData(updatedData, onSuccess, onError);
+        }
+        else
+            onError?.Invoke(request.error);
     }
 
-    public PlayerData FindPlayerByUsername(PlayerDataList playerDataList, string username)
-    {
-        return playerDataList.items.FirstOrDefault(p => p.username == username);
-    }
+    public PlayerData FindPlayerByUsername(PlayerDataList playerDataList, string username) =>
+        playerDataList.items.FirstOrDefault(p => p.username == username);
 
     public void UpdateExistingPlayerData(PlayerData player, string username, string email, int overallRating, string feedback)
     {
-        player.username = username;
-        player.email = email;
-        player.overallRating = overallRating;
-        player.feedback = feedback;
-        player.spirit1Name = GetSpiritName(0);
-        player.spirit2Name = GetSpiritName(1);
-        player.spirit3Name = GetSpiritName(2);
-        player.spirit4Name = GetSpiritName(3);
-        player.spirit5Name = GetSpiritName(4);
-        player.spirit1Flavours = GetSpiritFlavor(0);
-        player.spirit2Flavours = GetSpiritFlavor(1);
-        player.spirit3Flavours = GetSpiritFlavor(2);
-        player.spirit4Flavours = GetSpiritFlavor(3);
-        player.spirit5Flavours = GetSpiritFlavor(4);
-        player.spirit1Ratings = GetSpiritRating(0);
-        player.spirit2Ratings = GetSpiritRating(1);
-        player.spirit3Ratings = GetSpiritRating(2);
-        player.spirit4Ratings = GetSpiritRating(3);
-        player.spirit5Ratings = GetSpiritRating(4);
+        (player.username, player.email, player.overallRating, player.feedback) = (username, email, overallRating, feedback);
+        for (int i = 0; i < 5; i++)
+        {
+            player.GetType().GetField($"spirit{i + 1}Name").SetValue(player, GetSpiritName(i));
+            player.GetType().GetField($"spirit{i + 1}Flavours").SetValue(player, GetSpiritFlavor(i));
+            player.GetType().GetField($"spirit{i + 1}Ratings").SetValue(player, GetSpiritRating(i));
+        }
     }
+
 
     public PlayerData GeneratePlayerData(string username, string email, int overallRating, string feedback)
     {
-        return new PlayerData
+        var player = new PlayerData
         {
             id = GetUserId(),
             username = username,
             email = email,
             overallRating = overallRating,
-            feedback = feedback,
-            spirit1Name = GetSpiritName(0),
-            spirit2Name = GetSpiritName(1),
-            spirit3Name = GetSpiritName(2),
-            spirit4Name = GetSpiritName(3),
-            spirit5Name = GetSpiritName(4),
-            spirit1Flavours = GetSpiritFlavor(0),
-            spirit2Flavours = GetSpiritFlavor(1),
-            spirit3Flavours = GetSpiritFlavor(2),
-            spirit4Flavours = GetSpiritFlavor(3),
-            spirit5Flavours = GetSpiritFlavor(4),
-            spirit1Ratings = GetSpiritRating(0),
-            spirit2Ratings = GetSpiritRating(1),
-            spirit3Ratings = GetSpiritRating(2),
-            spirit4Ratings = GetSpiritRating(3),
-            spirit5Ratings = GetSpiritRating(4)
+            feedback = feedback
         };
+
+        for (int i = 0; i < 5; i++)
+        {
+            player.GetType().GetField($"spirit{i + 1}Name").SetValue(player, GetSpiritName(i));
+            player.GetType().GetField($"spirit{i + 1}Flavours").SetValue(player, GetSpiritFlavor(i));
+            player.GetType().GetField($"spirit{i + 1}Ratings").SetValue(player, GetSpiritRating(i));
+        }
+
+        return player;
     }
- public List<SpiritInfo> GetLocalSortedSpirits()
-    {
-        List<SpiritInfo> sortedSpirits = spiritData.Values.ToList();
-        sortedSpirits.Sort((a, b) => (b.Rating * b.SelectedFlavors).CompareTo(a.Rating * a.SelectedFlavors));
-        return sortedSpirits.Take(3).ToList();
-    }
+
+    public List<SpiritInfo> GetLocalSortedSpirits() =>
+        spiritData.Values
+            .OrderByDescending(s => s.Rating * s.SelectedFlavors)
+            .Take(3)
+            .ToList();
 
     public List<string> GetGeneralSortedSpirits(PlayerDataList playerDataList)
     {
         var spiritScores = new Dictionary<string, float>();
-
         foreach (var player in playerDataList.items)
         {
-            UpdateSpiritScore(spiritScores, player.spirit1Name, player.spirit1Ratings * player.spirit1Flavours);
-            UpdateSpiritScore(spiritScores, player.spirit2Name, player.spirit2Ratings * player.spirit2Flavours);
-            UpdateSpiritScore(spiritScores, player.spirit3Name, player.spirit3Ratings * player.spirit3Flavours);
-            UpdateSpiritScore(spiritScores, player.spirit4Name, player.spirit4Ratings * player.spirit4Flavours);
-            UpdateSpiritScore(spiritScores, player.spirit5Name, player.spirit5Ratings * player.spirit5Flavours);
+            for (int i = 1; i <= 5; i++)
+            {
+                UpdateSpiritScore(spiritScores,
+                    (string)player.GetType().GetField($"spirit{i}Name").GetValue(player),
+                    (int)player.GetType().GetField($"spirit{i}Ratings").GetValue(player) *
+                    (int)player.GetType().GetField($"spirit{i}Flavours").GetValue(player));
+            }
         }
-
         return spiritScores.OrderByDescending(pair => pair.Value)
                            .Take(3)
                            .Select(pair => pair.Key)
                            .ToList();
     }
+
     private void UpdateSpiritScore(Dictionary<string, float> spiritScores, string spiritName, float score)
     {
-        if (string.IsNullOrEmpty(spiritName)) return;
-
-        if (spiritScores.ContainsKey(spiritName))
-        {
-            spiritScores[spiritName] += score;
-        }
-        else
-        {
-            spiritScores[spiritName] = score;
-        }
-    }
-    // Add these methods to get average ratings and flavours
-    public float GetAverageRating(int index)
-    {
-        // Implement this method to return the average rating for the spirit at the given index
-        // This should be based on the data in FlavourTable2
-        return 0f; // Placeholder return
-    }
-
-    public float GetAverageFlavour(int index)
-    {
-        // Implement this method to return the average flavour for the spirit at the given index
-        // This should be based on the data in FlavourTable2
-        return 0f; // Placeholder return
-    }
-
-    // ... (rest of the methods remain the same)
-
-    // Call this method when you want to update the UI
-    public void UpdateUIWithLocalSortedSpirits(UIManager uiManager)
-    {
-        uiManager.UpdateTopThreeSpirits();
+        if (!string.IsNullOrEmpty(spiritName))
+            spiritScores[spiritName] = spiritScores.TryGetValue(spiritName, out float existingScore) ? existingScore + score : score;
     }
 
     public string GetSpiritName(int index)
@@ -223,51 +145,29 @@ public class DataManager : MonoBehaviour
             ? spiritData[spiritNames[index]].Rating
             : 0;
     }
-
     public void UpdateSpiritNamesListFromServer(List<PlayerData> players, string currentUsername)
     {
-        PlayerData currentPlayer = players.FirstOrDefault(p => p.username == currentUsername);
+        var currentPlayer = players.FirstOrDefault(p => p.username == currentUsername);
         if (currentPlayer != null)
         {
-            spiritNames.Clear();
-            AddSpiritName(currentPlayer.spirit1Name);
-            AddSpiritName(currentPlayer.spirit2Name);
-            AddSpiritName(currentPlayer.spirit3Name);
-            AddSpiritName(currentPlayer.spirit4Name);
-            AddSpiritName(currentPlayer.spirit5Name);
+            spiritNames = new List<string> { currentPlayer.spirit1Name, currentPlayer.spirit2Name, currentPlayer.spirit3Name, currentPlayer.spirit4Name, currentPlayer.spirit5Name }
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
             UpdateSpiritData();
-        }
-    }
-
-    private void AddSpiritName(string name)
-    {
-        if (!string.IsNullOrEmpty(name))
-        {
-            spiritNames.Add(name);
         }
     }
 
     private void UpdateSpiritData()
     {
-        foreach (string spiritName in spiritNames)
-        {
-            if (!spiritData.ContainsKey(spiritName))
-            {
-                spiritData[spiritName] = new SpiritInfo(spiritName);
-            }
-        }
+        foreach (var spiritName in spiritNames.Where(name => !spiritData.ContainsKey(name)))
+            spiritData[spiritName] = new SpiritInfo(spiritName);
 
-        List<string> keysToRemove = spiritData.Keys.Where(k => !spiritNames.Contains(k)).ToList();
-        foreach (string key in keysToRemove)
-        {
-            spiritData.Remove(key);
-        }
+        spiritData.Keys.Where(k => !spiritNames.Contains(k))
+            .ToList()
+            .ForEach(key => spiritData.Remove(key));
     }
 
-    private int GetUserId()
-    {
-        return PlayerPrefs.GetInt(UserIdKey, 0);
-    }
+    private int GetUserId() => PlayerPrefs.GetInt(UserIdKey, 0);
 
     private void SaveUserId(int id)
     {
@@ -279,25 +179,11 @@ public class DataManager : MonoBehaviour
     public class PlayerData
     {
         public int id;
-        public string username;
-        public string email;
-        public string spirit1Name;
-        public string spirit2Name;
-        public string spirit3Name;
-        public string spirit4Name;
-        public string spirit5Name;
-        public int spirit1Flavours = 0;
-        public int spirit2Flavours = 0;
-        public int spirit3Flavours = 0;
-        public int spirit4Flavours = 0;
-        public int spirit5Flavours = 0;
-        public int spirit1Ratings = 0;
-        public int spirit2Ratings = 0;
-        public int spirit3Ratings = 0;
-        public int spirit4Ratings = 0;
-        public int spirit5Ratings = 0;
-        public string feedback = "Great";
-        public int overallRating = 0;
+        public string username, email, feedback = "Great";
+        public string spirit1Name, spirit2Name, spirit3Name, spirit4Name, spirit5Name;
+        public int spirit1Flavours, spirit2Flavours, spirit3Flavours, spirit4Flavours, spirit5Flavours;
+        public int spirit1Ratings, spirit2Ratings, spirit3Ratings, spirit4Ratings, spirit5Ratings;
+        public int overallRating;
     }
 
     [System.Serializable]

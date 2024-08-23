@@ -2,107 +2,64 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Linq;
 
 public class FlavorWheelDataRecorder : MonoBehaviour
 {
-    public Transform duplicatedWheel; // Serialized field for the duplicated wheel
-    public Transform Rating; // Serialized field for the Rating buttons
-    public Text spiritNameText; // Public Text field to hold the spirit name
+    public Transform duplicatedWheel, Rating;
+    public Text spiritNameText;
+    [SerializeField] private AudioClip ratingSound;
 
-    private Transform names; // Transform for names, automatically set as the first child of duplicatedWheel
-    private Text scoreText; // Text component for score, automatically set as the second child of duplicatedWheel
-    private List<FlavorWheelController> controllers = new List<FlavorWheelController>(); // List of all FlavorWheelController components
-    private List<(string imageName, string parentName)> selectedFlavors = new List<(string, string)>(); // List of selected flavors
-    private List<Button> ratingButtons = new List<Button>(); // List of rating buttons
-    private int currentRating = 0; // Current rating value
-    private Text scoreTextMain; // Score text from the original Rating transform
-
-    private AudioSource audioSource; // AudioSource from the camera
-    [SerializeField] private AudioClip ratingSound; // Audio clip for rating button click
-
-    private SpiritManager spiritManager; // Reference to SpiritManager
+    private Transform names;
+    private Text scoreText, scoreTextMain;
+    private List<FlavorWheelController> controllers = new List<FlavorWheelController>();
+    private List<(string imageName, string parentName)> selectedFlavors = new List<(string, string)>();
+    private List<Button> ratingButtons = new List<Button>();
+    private int currentRating;
+    private AudioSource audioSource;
+    private SpiritManager spiritManager;
 
     void Start()
     {
-        // Automatically set names and scoreText to be the first and second child of duplicatedWheel
         if (duplicatedWheel != null && duplicatedWheel.childCount > 1)
         {
             names = duplicatedWheel.GetChild(0);
             scoreText = duplicatedWheel.GetChild(1).GetComponent<Text>();
         }
 
-        // Get the AudioSource from the Camera
         audioSource = Camera.main.GetComponent<AudioSource>();
-
-        // Get all FlavorWheelController components that are children of this object
         controllers.AddRange(GetComponentsInChildren<FlavorWheelController>());
+        controllers.ForEach(c => c.dataRecorder = this);
 
-        // Assign this FlavorWheelDataRecorder to each controller
-        foreach (var controller in controllers)
-        {
-            controller.dataRecorder = this;
-        }
-
-        // Initialize rating buttons and score text
         if (Rating != null)
         {
             foreach (Transform child in Rating)
             {
                 if (child.name == "Score")
-                {
                     scoreTextMain = child.GetComponent<Text>();
-                }
-                else
+                else if (child.TryGetComponent(out Button button))
                 {
-                    Button button = child.GetComponent<Button>();
-                    if (button != null)
-                    {
-                        ratingButtons.Add(button);
-                        int rating = ratingButtons.Count; // Assign rating based on position
-                        button.onClick.AddListener(() => Rate(rating));
-                        button.onClick.AddListener(PlayClickSound); // Add sound to the rating button click
-                    }
+                    ratingButtons.Add(button);
+                    int rating = ratingButtons.Count;
+                    button.onClick.AddListener(() => Rate(rating));
+                    button.onClick.AddListener(PlayClickSound);
                 }
             }
         }
 
-        // Initialize the names transform children
         InitializeNames();
         UpdateNamesDisplay();
-        UpdateScoreText(); // Initialize score text
-
-        // Find and reference the SpiritManager
+        UpdateScoreText();
         spiritManager = FindObjectOfType<SpiritManager>();
     }
 
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            ListSelectedFlavors();
-        }
-        // Continuously check the TextMeshPro state and update parents
-        UpdateTextMeshProParents();
-    }
+    void Update() => UpdateTextMeshProParents();
 
     public void RecordFlavor(string imageName, string parentName)
     {
-        // Prevent adding more than 7 flavors
-        if (selectedFlavors.Count >= 7)
-        {
+        if (selectedFlavors.Count >= 7 || selectedFlavors.Any(f => f.imageName == imageName))
             return;
-        }
 
-        // Check if the flavor already exists
-        foreach (var flavor in selectedFlavors)
-        {
-            if (flavor.imageName == imageName)
-            {
-                return;
-            }
-        }
-
-        // Add flavor to the list and update the display
         selectedFlavors.Add((imageName, parentName));
         UpdateNamesDisplay();
         UpdateSpiritManager();
@@ -110,7 +67,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
     public void UnrecordFlavor(string imageName, string parentName, bool removeParent)
     {
-        // Remove flavor from the list and update the display
         selectedFlavors.RemoveAll(f => f.imageName == imageName && f.parentName == parentName);
         UpdateNamesDisplay();
         UpdateSpiritManager();
@@ -118,69 +74,30 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
     public void Rate(int rating)
     {
-        currentRating = rating; // Update current rating
+        currentRating = rating;
+        Color gold = new Color(1f, 0.75f, 0f);
 
-        // Reset all buttons to their default color
-        foreach (Button btn in ratingButtons)
-        {
-            btn.image.color = Color.white;
-        }
+        for (int i = 0; i < ratingButtons.Count; i++)
+            ratingButtons[i].image.color = i < rating ? gold : Color.white;
 
-        // Change the color of the buttons based on the rating
-        Color gold = new Color(255 / 255f, 192 / 255f, 0 / 255f); // Gold color in RGB
-        for (int i = 0; i < rating; i++)
-        {
-            ratingButtons[i].image.color = gold;
-        }
-
-        UpdateScoreText(); // Update both score texts
+        UpdateScoreText();
         UpdateSpiritManager();
     }
 
     private void EnableImage(Image image)
     {
-        // Enable image and collider
-        if (image != null)
-        {
-            image.gameObject.SetActive(true);
-            image.color = Color.white;
-            Collider2D collider = image.GetComponent<Collider2D>();
-            if (collider != null)
-            {
-                collider.enabled = true;
-            }
-        }
+        if (image == null) return;
+        image.gameObject.SetActive(true);
+        image.color = Color.white;
+        if (image.TryGetComponent(out Collider2D collider)) collider.enabled = true;
     }
 
     private void DisableImage(Image image)
     {
-        // Disable image and collider, and darken the image
-        if (image != null)
-        {
-            image.color = new Color(0.35f, 0.35f, 0.35f, 1f);
-            Collider2D collider = image.GetComponent<Collider2D>();
-            if (collider != null)
-            {
-                collider.enabled = false;
-            }
-            image.gameObject.SetActive(false);
-        }
-    }
-
-    private void ListSelectedFlavors()
-    {
-        // List all selected flavors (used for debugging or display)
-        if (selectedFlavors.Count > 0)
-        {
-            foreach (var flavor in selectedFlavors)
-            {
-                Debug.Log($"Flavor: {flavor.imageName}, Parent: {flavor.parentName}");
-            }
-        }
-        else
-        {
-            Debug.Log("No flavors have been selected.");
-        }
+        if (image == null) return;
+        image.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+        if (image.TryGetComponent(out Collider2D collider)) collider.enabled = false;
+        image.gameObject.SetActive(false);
     }
 
     private void InitializeNames()
@@ -196,35 +113,58 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             }
         }
     }
-
     private void UpdateNamesDisplay()
     {
-        // Update the display of names and enable corresponding images
+        // First, disable all images in the duplicated wheel
+        for (int i = 1; i < duplicatedWheel.childCount; i++)
+        {
+            Transform wheelChild = duplicatedWheel.GetChild(i);
+            if (wheelChild.TryGetComponent(out Image image))
+            {
+                DisableImage(image);
+            }
+            DisableAllChildren(wheelChild);
+        }
+
+        // Now, update the names and enable corresponding images
         for (int i = 0; i < names.childCount; i++)
         {
             Transform nameChild = names.GetChild(i);
+            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
+
             if (i < selectedFlavors.Count)
             {
                 nameChild.gameObject.SetActive(true);
-                TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
                 if (textMeshPro != null)
                 {
                     textMeshPro.text = selectedFlavors[i].imageName;
                 }
-
                 // Enable corresponding image and its parent in duplicatedWheel
                 EnableImageAndParentsInDuplicatedWheel(selectedFlavors[i].imageName);
             }
             else
             {
                 nameChild.gameObject.SetActive(false);
+                if (textMeshPro != null)
+                {
+                    textMeshPro.text = "";
+                }
             }
         }
-
-        // Disable any images in duplicatedWheel that are not in the selectedFlavors list
-        DisableUnselectedImagesAndParentsInDuplicatedWheel();
     }
 
+    private void DisableAllChildren(Transform parent)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.TryGetComponent(out Image image))
+            {
+                DisableImage(image);
+            }
+            child.gameObject.SetActive(false);
+            DisableAllChildren(child);
+        }
+    }
     private void UpdateTextMeshProParents()
     {
         // Continuously check and update the TextMeshPro state and their parent
@@ -238,75 +178,40 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             }
         }
     }
-
     private void UpdateScoreText()
     {
-        // Update the score text
-        if (scoreText != null)
-        {
-            scoreText.text = currentRating.ToString();
-        }
-
-        if (scoreTextMain != null)
-        {
-            scoreTextMain.text = currentRating.ToString();
-        }
+        scoreText.text = currentRating.ToString();
+        scoreTextMain.text = currentRating.ToString();
     }
 
     private void EnableImageAndParentsInDuplicatedWheel(string imageName)
     {
-        // Enable image and its parents in the duplicated wheel
-        foreach (Transform child in duplicatedWheel)
+        for (int i = 1; i < duplicatedWheel.childCount; i++)
         {
-            Transform target = FindChildRecursive(child, imageName);
+            Transform wheelChild = duplicatedWheel.GetChild(i);
+            Transform target = FindChildRecursive(wheelChild, imageName);
             if (target != null)
             {
                 EnableImage(target.GetComponent<Image>());
                 EnableParentImages(target);
+                break; // Exit the loop once we've found and enabled the correct image
             }
-        }
-    }
-
-    private void DisableUnselectedImagesAndParentsInDuplicatedWheel()
-    {
-        // Disable unselected images and their parents
-        foreach (Transform child in duplicatedWheel)
-        {
-            DisableUnselectedImagesAndParentsRecursive(child);
         }
     }
 
     private void DisableUnselectedImagesAndParentsRecursive(Transform parent)
     {
-        // Recursively disable unselected images and their parents
         foreach (Transform child in parent)
         {
-            bool isSelected = false;
-            foreach (var flavor in selectedFlavors)
+            if (!selectedFlavors.Any(f => f.imageName == child.name))
             {
-                if (child.name == flavor.imageName)
-                {
-                    isSelected = true;
-                    break;
-                }
-            }
-
-            if (!isSelected)
-            {
-                Image image = child.GetComponent<Image>();
-                if (image != null)
+                if (child.TryGetComponent(out Image image))
                 {
                     DisableImage(image);
-
-                    // Check if all siblings are inactive, then disable the parent
-                    Transform parentTransform = child.parent;
-                    if (parentTransform != null && AreAllSiblingsInactive(child))
+                    if (child.parent && AreAllSiblingsInactive(child))
                     {
-                        Image parentImage = parentTransform.GetComponent<Image>();
-                        if (parentImage != null)
-                        {
-                            DisableImage(parentImage);
-                        }
+                        child.parent.TryGetComponent(out Image parentImage);
+                        DisableImage(parentImage);
                     }
                 }
             }
@@ -337,61 +242,33 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
     private void EnableParentImages(Transform child)
     {
-        // Enable all parent images up the hierarchy
         Transform parent = child.parent;
         while (parent != null)
         {
-            Image parentImage = parent.GetComponent<Image>();
-            if (parentImage != null)
-            {
+            if (parent.TryGetComponent(out Image parentImage))
                 EnableImage(parentImage);
-            }
             parent = parent.parent;
         }
     }
 
     private bool AreAllSiblingsInactive(Transform child)
     {
-        // Check if all siblings of a child are inactive
-        Transform parent = child.parent;
-        if (parent == null) return false;
-
-        foreach (Transform sibling in parent)
-        {
-            if (sibling != child && sibling.gameObject.activeSelf)
-            {
-                return false;
-            }
-        }
-        return true;
+        return child.parent != null && child.parent.GetComponentsInChildren<Transform>()
+            .Where(t => t != child)
+            .All(t => !t.gameObject.activeSelf);
     }
 
     private void PlayClickSound()
     {
-        // Play the rating sound
-        if (audioSource != null && ratingSound != null)
-        {
+        if (audioSource && ratingSound)
             audioSource.PlayOneShot(ratingSound);
-        }
     }
 
     private void UpdateSpiritManager()
     {
-        // Update the "Spirit" text child of duplicatedWheel with the spirit name
-        if (duplicatedWheel != null && duplicatedWheel.childCount > 2)
-        {
-            Text spiritText = duplicatedWheel.GetChild(2).GetComponent<Text>();
-            if (spiritText != null)
-            {
-                spiritText.text = spiritNameText.text;
-            }
-        }
+        if (duplicatedWheel && duplicatedWheel.childCount > 2)
+            duplicatedWheel.GetChild(2).GetComponent<Text>().text = spiritNameText?.text;
 
-        // Send the data to the SpiritManager
-        if (spiritManager != null && spiritNameText != null)
-        {
-            string spiritName = spiritNameText.text;
-            spiritManager.ReceiveSpiritData(spiritName, selectedFlavors.Count, currentRating);
-        }
+        spiritManager?.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating);
     }
 }

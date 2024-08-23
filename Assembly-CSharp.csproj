@@ -69,7 +69,6 @@
     <Compile Include="Assets\Flavour wheels\Scripts\RotationAndZoomController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UserInputManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SwipeUI.cs" />
-    <Compile Include="Assets\Flavour wheels\Scripts\SimpleDebugDataManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\DataManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SpiritManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\TableData.cs" />

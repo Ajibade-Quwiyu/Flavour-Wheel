@@ -7,29 +7,18 @@ public class RadarChart : MonoBehaviour
 {
     public enum DataType
     {
-        MyThink,
-        MyDetects,
-        OtherThinks,
-        OtherDetects,
-        Neutral // Added Neutral data type
+        MyThink, MyDetects, OtherThinks, OtherDetects, Neutral
     }
 
     public UIManager uIManager;
     public DataType selectedDataType;
 
-    public float spirit1;
-    public float spirit2;
-    public float spirit3;
-    public float spirit4;
-    public float spirit5;
-
+    public float[] spirits = new float[5];
     public RectTransform radarChart;
     public UILineRenderer lineRenderer;
-    public float lineWidth = 2f;
-    public Color lineColor = Color.red;
 
-    private float minValue;
-    private float maxValue;
+    public float lineWidth = 2f, minValue, maxValue;
+    public Color lineColor = Color.red;
 
     void Start()
     {
@@ -43,86 +32,81 @@ public class RadarChart : MonoBehaviour
 
     public void UpdateRadarChart()
     {
-        List<float> values = GetDataValues(selectedDataType);
+        var values = GetDataValues(selectedDataType);
+
         if (values.Count == 5)
         {
-            spirit1 = values[0];
-            spirit2 = values[4];
-            spirit3 = values[3];
-            spirit4 = values[2];
-            spirit5 = values[1];
-
-            if (selectedDataType == DataType.Neutral)
-            {
-                minValue = 0;
-                maxValue = 1;
-            }
-            else
-            {
-                minValue = values.Min();
-                maxValue = values.Max();
-            }
-
+            SetSpiritValues(values);
+            SetMinMaxValues(values);
             UpdateRadarShape();
+        }
+    }
+
+    private void SetSpiritValues(List<float> values)
+    {
+        // Mapping the spirit values in the order defined in the original method
+        float[] mappedValues = { values[0], values[4], values[3], values[2], values[1] };
+        for (int i = 0; i < spirits.Length; i++)
+        {
+            spirits[i] = mappedValues[i];
+        }
+    }
+
+    private void SetMinMaxValues(List<float> values)
+    {
+        if (selectedDataType == DataType.Neutral)
+        {
+            minValue = 0;
+            maxValue = 1;
+        }
+        else
+        {
+            minValue = values.Min();
+            maxValue = values.Max();
         }
     }
 
     private List<float> GetDataValues(DataType dataType)
     {
-        List<float> values = new List<float>();
+        float[] data = new float[5];
 
         switch (dataType)
         {
             case DataType.MyThink:
-                values.Add(uIManager.GetLocalDataRating(0));
-                values.Add(uIManager.GetLocalDataRating(1));
-                values.Add(uIManager.GetLocalDataRating(2));
-                values.Add(uIManager.GetLocalDataRating(3));
-                values.Add(uIManager.GetLocalDataRating(4));
+                data = GetLocalData(uIManager.GetLocalDataRating);
                 break;
             case DataType.MyDetects:
-                values.Add(uIManager.GetLocalDataFlavour(0));
-                values.Add(uIManager.GetLocalDataFlavour(1));
-                values.Add(uIManager.GetLocalDataFlavour(2));
-                values.Add(uIManager.GetLocalDataFlavour(3));
-                values.Add(uIManager.GetLocalDataFlavour(4));
+                data = GetLocalData(uIManager.GetLocalDataFlavour);
                 break;
             case DataType.OtherThinks:
-                values.Add(uIManager.GetAverageRating(0));
-                values.Add(uIManager.GetAverageRating(1));
-                values.Add(uIManager.GetAverageRating(2));
-                values.Add(uIManager.GetAverageRating(3));
-                values.Add(uIManager.GetAverageRating(4));
+                data = GetLocalData(uIManager.GetAverageRating);
                 break;
             case DataType.OtherDetects:
-                values.Add(uIManager.GetAverageFlavour(0));
-                values.Add(uIManager.GetAverageFlavour(1));
-                values.Add(uIManager.GetAverageFlavour(2));
-                values.Add(uIManager.GetAverageFlavour(3));
-                values.Add(uIManager.GetAverageFlavour(4));
+                data = GetLocalData(uIManager.GetAverageFlavour);
                 break;
             case DataType.Neutral:
-                values.Add(1f); // Neutral values set to 1
-                values.Add(1f); // Neutral values set to 1
-                values.Add(1f); // Neutral values set to 1
-                values.Add(1f); // Neutral values set to 1
-                values.Add(1f); // Neutral values set to 1
-                break;
+                return Enumerable.Repeat(1f, 5).ToList(); // All values set to 1 for Neutral
         }
 
-        return values;
+        return data.ToList();
+    }
+
+    private float[] GetLocalData(System.Func<int, float> getDataMethod)
+    {
+        return new float[]
+        {
+            getDataMethod(0),
+            getDataMethod(1),
+            getDataMethod(2),
+            getDataMethod(3),
+            getDataMethod(4)
+        };
     }
 
     private void UpdateRadarShape()
     {
-        float[] values = { spirit1, spirit2, spirit3, spirit4, spirit5 };
-
-        for (int i = 0; i < values.Length; i++)
-        {
-            values[i] = Mathf.InverseLerp(minValue, maxValue, values[i]);
-        }
-
-        int numPoints = values.Length;
+        float[] normalizedValues = spirits.Select(v => Mathf.InverseLerp(minValue, maxValue, v)).ToArray();
+        int numPoints = normalizedValues.Length;
         Vector2[] points = new Vector2[numPoints + 1];
 
         float width = radarChart.rect.width;
@@ -134,10 +118,8 @@ public class RadarChart : MonoBehaviour
         for (int i = 0; i < numPoints; i++)
         {
             float angle = (i * (2 * Mathf.PI / numPoints)) + (Mathf.PI / 2);
-            float radius = values[i] * maxRadius;
-            float x = centerX + radius * Mathf.Cos(angle);
-            float y = centerY + radius * Mathf.Sin(angle);
-            points[i] = new Vector2(x, y);
+            float radius = normalizedValues[i] * maxRadius;
+            points[i] = new Vector2(centerX + radius * Mathf.Cos(angle), centerY + radius * Mathf.Sin(angle));
         }
 
         points[numPoints] = points[0]; // Closing the radar chart loop
