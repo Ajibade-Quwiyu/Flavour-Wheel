@@ -24,6 +24,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         UpdatePointerGraphics();
         UpdateIndicatorDots();
         UpdateActiveMainPanelSiblingIndex();
+        UpdateZoomTargetTag();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -130,6 +131,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         currentMainPanelIndex = currentPointerIndex;
         UpdatePanelPositions();
+        UpdateZoomTargetTag();
     }
 
     private void ResetPointerPositions()
@@ -161,5 +163,23 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         if (mainPanels.Length > 0 && currentMainPanelIndex >= 0 && currentMainPanelIndex < mainPanels.Length)
             mainPanels[currentMainPanelIndex].SetAsLastSibling();
+    }
+    private void UpdateZoomTargetTag()
+    {
+        for (int i = 0; i < mainPanels.Length; i++)
+        {
+            ZoomAndPan zoomAndPan = mainPanels[i].GetComponentInChildren<ZoomAndPan>();
+            if (zoomAndPan != null)
+            {
+                if (i == currentMainPanelIndex)
+                {
+                    zoomAndPan.gameObject.tag = "ZoomTarget";
+                }
+                else
+                {
+                    zoomAndPan.gameObject.tag = "Untagged";
+                }
+            }
+        }
     }
 }
