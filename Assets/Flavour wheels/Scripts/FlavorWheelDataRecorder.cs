@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Linq;
+using System.Collections;
 
 public class FlavorWheelDataRecorder : MonoBehaviour
 {
@@ -21,6 +22,29 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
     void Start()
     {
+        InitializeComponents();
+        InitializeWheel();
+        StartCoroutine(DelayedUpdateSpiritManager());
+    }
+
+    void Update()
+    {
+        UpdateTextMeshProParents();
+    }
+    private IEnumerator DelayedUpdateSpiritManager()
+    {
+        yield return null; // Wait for the next frame
+        UpdateSpiritManager();
+        spiritManager = FindObjectOfType<SpiritManager>();
+        if (spiritManager == null)
+        {
+            Debug.LogWarning("SpiritManager not found in the scene. Some functionality may be limited.");
+        }
+    }
+
+    // Initialization methods
+    private void InitializeComponents()
+    {
         if (duplicatedWheel != null && duplicatedWheel.childCount > 1)
         {
             names = duplicatedWheel.GetChild(0);
@@ -31,6 +55,13 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         controllers.AddRange(GetComponentsInChildren<FlavorWheelController>());
         controllers.ForEach(c => c.dataRecorder = this);
 
+        SetupRatingButtons();
+
+        spiritManager = FindObjectOfType<SpiritManager>();
+    }
+
+    private void SetupRatingButtons()
+    {
         if (Rating != null)
         {
             foreach (Transform child in Rating)
@@ -46,15 +77,29 @@ public class FlavorWheelDataRecorder : MonoBehaviour
                 }
             }
         }
+    }
 
+    private void InitializeWheel()
+    {
         InitializeNames();
         UpdateNamesDisplay();
         UpdateScoreText();
-        spiritManager = FindObjectOfType<SpiritManager>();
     }
 
-    void Update() => UpdateTextMeshProParents();
+    private void InitializeNames()
+    {
+        for (int i = 0; i < names.childCount; i++)
+        {
+            Transform nameChild = names.GetChild(i);
+            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
+            if (textMeshPro != null)
+            {
+                textMeshPro.text = null;
+            }
+        }
+    }
 
+    // Update methods
     public void RecordFlavor(string imageName, string parentName)
     {
         if (selectedFlavors.Count >= 7 || selectedFlavors.Any(f => f.imageName == imageName))
@@ -84,6 +129,126 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         UpdateSpiritManager();
     }
 
+    private void UpdateNamesDisplay()
+    {
+        for (int i = 1; i < duplicatedWheel.childCount; i++)
+        {
+            Transform wheelChild = duplicatedWheel.GetChild(i);
+            if (wheelChild.TryGetComponent(out Image image))
+            {
+                DisableImage(image);
+            }
+            DisableAllChildren(wheelChild);
+        }
+
+        for (int i = 0; i < names.childCount; i++)
+        {
+            Transform nameChild = names.GetChild(i);
+            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
+
+            if (i < selectedFlavors.Count)
+            {
+                nameChild.gameObject.SetActive(true);
+                if (textMeshPro != null)
+                {
+                    textMeshPro.text = selectedFlavors[i].imageName;
+                }
+                EnableImageAndParentsInDuplicatedWheel(selectedFlavors[i].imageName);
+            }
+            else
+            {
+                nameChild.gameObject.SetActive(false);
+                if (textMeshPro != null)
+                {
+                    textMeshPro.text = "";
+                }
+            }
+        }
+    }
+
+    private void UpdateTextMeshProParents()
+    {
+        for (int i = 0; i < names.childCount; i++)
+        {
+            Transform nameChild = names.GetChild(i);
+            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
+            if (textMeshPro != null)
+            {
+                nameChild.gameObject.SetActive(!string.IsNullOrEmpty(textMeshPro.text));
+            }
+        }
+    }
+
+    private void UpdateScoreText()
+    {
+        scoreText.text = currentRating.ToString();
+        scoreTextMain.text = currentRating.ToString();
+    }
+
+    private void UpdateSpiritManager()
+    {
+        if (duplicatedWheel && duplicatedWheel.childCount > 2)
+        {
+            Text spiritNameDisplay = duplicatedWheel.GetChild(2).GetComponent<Text>();
+            if (spiritNameDisplay != null)
+            {
+                spiritNameDisplay.text = spiritNameText?.text ?? "";
+            }
+        }
+
+        if (spiritManager != null)
+        {
+            spiritManager.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating);
+        }
+        else
+        {
+            Debug.LogWarning("Attempt to update SpiritManager, but it is not available.");
+        }
+    }
+
+    // Reset methods
+    public void ResetEverything()
+    {
+        selectedFlavors.Clear();
+        currentRating = 0;
+
+        ResetRatingButtons();
+        ResetDuplicatedWheel();
+        ResetControllers();
+
+        InitializeWheel();
+        UpdateSpiritManager();
+    }
+
+    private void ResetRatingButtons()
+    {
+        foreach (Button button in ratingButtons)
+        {
+            button.image.color = Color.white;
+        }
+    }
+
+    private void ResetDuplicatedWheel()
+    {
+        if (duplicatedWheel != null)
+        {
+            for (int i = 1; i < duplicatedWheel.childCount; i++)
+            {
+                Transform wheelChild = duplicatedWheel.GetChild(i);
+                DisableAllChildren(wheelChild);
+            }
+        }
+    }
+
+    private void ResetControllers()
+    {
+        foreach (FlavorWheelController controller in controllers)
+        {
+            controller.ResetController();
+        }
+    }
+
+    // Utility methods
     private void EnableImage(Image image)
     {
         if (image == null) return;
@@ -100,59 +265,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         image.gameObject.SetActive(false);
     }
 
-    private void InitializeNames()
-    {
-        // Initialize names by setting all TextMeshPro text to null
-        for (int i = 0; i < names.childCount; i++)
-        {
-            Transform nameChild = names.GetChild(i);
-            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
-            if (textMeshPro != null)
-            {
-                textMeshPro.text = null;
-            }
-        }
-    }
-    private void UpdateNamesDisplay()
-    {
-        // First, disable all images in the duplicated wheel
-        for (int i = 1; i < duplicatedWheel.childCount; i++)
-        {
-            Transform wheelChild = duplicatedWheel.GetChild(i);
-            if (wheelChild.TryGetComponent(out Image image))
-            {
-                DisableImage(image);
-            }
-            DisableAllChildren(wheelChild);
-        }
-
-        // Now, update the names and enable corresponding images
-        for (int i = 0; i < names.childCount; i++)
-        {
-            Transform nameChild = names.GetChild(i);
-            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
-
-            if (i < selectedFlavors.Count)
-            {
-                nameChild.gameObject.SetActive(true);
-                if (textMeshPro != null)
-                {
-                    textMeshPro.text = selectedFlavors[i].imageName;
-                }
-                // Enable corresponding image and its parent in duplicatedWheel
-                EnableImageAndParentsInDuplicatedWheel(selectedFlavors[i].imageName);
-            }
-            else
-            {
-                nameChild.gameObject.SetActive(false);
-                if (textMeshPro != null)
-                {
-                    textMeshPro.text = "";
-                }
-            }
-        }
-    }
-
     private void DisableAllChildren(Transform parent)
     {
         foreach (Transform child in parent)
@@ -165,24 +277,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             DisableAllChildren(child);
         }
     }
-    private void UpdateTextMeshProParents()
-    {
-        // Continuously check and update the TextMeshPro state and their parent
-        for (int i = 0; i < names.childCount; i++)
-        {
-            Transform nameChild = names.GetChild(i);
-            TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
-            if (textMeshPro != null)
-            {
-                nameChild.gameObject.SetActive(!string.IsNullOrEmpty(textMeshPro.text));
-            }
-        }
-    }
-    private void UpdateScoreText()
-    {
-        scoreText.text = currentRating.ToString();
-        scoreTextMain.text = currentRating.ToString();
-    }
 
     private void EnableImageAndParentsInDuplicatedWheel(string imageName)
     {
@@ -194,37 +288,13 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             {
                 EnableImage(target.GetComponent<Image>());
                 EnableParentImages(target);
-                break; // Exit the loop once we've found and enabled the correct image
-            }
-        }
-    }
-
-    private void DisableUnselectedImagesAndParentsRecursive(Transform parent)
-    {
-        foreach (Transform child in parent)
-        {
-            if (!selectedFlavors.Any(f => f.imageName == child.name))
-            {
-                if (child.TryGetComponent(out Image image))
-                {
-                    DisableImage(image);
-                    if (child.parent && AreAllSiblingsInactive(child))
-                    {
-                        child.parent.TryGetComponent(out Image parentImage);
-                        DisableImage(parentImage);
-                    }
-                }
-            }
-            else
-            {
-                DisableUnselectedImagesAndParentsRecursive(child);
+                break;
             }
         }
     }
 
     private Transform FindChildRecursive(Transform parent, string name)
     {
-        // Recursively find a child by name
         foreach (Transform child in parent)
         {
             if (child.name == name)
@@ -251,24 +321,15 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         }
     }
 
-    private bool AreAllSiblingsInactive(Transform child)
-    {
-        return child.parent != null && child.parent.GetComponentsInChildren<Transform>()
-            .Where(t => t != child)
-            .All(t => !t.gameObject.activeSelf);
-    }
-
     private void PlayClickSound()
     {
         if (audioSource && ratingSound)
             audioSource.PlayOneShot(ratingSound);
     }
 
-    private void UpdateSpiritManager()
+    // Public method for button click
+    public void OnResetButtonClick()
     {
-        if (duplicatedWheel && duplicatedWheel.childCount > 2)
-            duplicatedWheel.GetChild(2).GetComponent<Text>().text = spiritNameText?.text;
-
-        spiritManager?.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating);
+        ResetEverything();
     }
 }
