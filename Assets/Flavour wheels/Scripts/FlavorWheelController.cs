@@ -27,6 +27,8 @@ public class FlavorWheelController : MonoBehaviour
     public AudioClip clickClip, doubleClickClip;
     private AudioSource audioSource;
     private Dictionary<Image, bool> selectedImages = new Dictionary<Image, bool>();
+    private const int MAX_SELECTIONS = 7;
+    private bool isMaxSelectionsReached = false;
 
     void Start()
     {
@@ -98,11 +100,23 @@ public class FlavorWheelController : MonoBehaviour
     {
         if (!IsGrandchild(image)) return;
 
-        Select(selectedImages.TryGetValue(image, out bool isSelected) && isSelected ? 1 : 2);
-        ScaleImage(image, true);
-        ApplyDoubleClickIndicator(image);
-        selectedImages[image] = true;
-        dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name);
+        if (selectedImages.TryGetValue(image, out bool isSelected) && isSelected)
+        {
+            UnselectImage(image);
+        }
+        else if (dataRecorder.GetSelectionCount() < MAX_SELECTIONS)
+        {
+            SelectImage(image);
+            ScaleImage(image, true);
+            ApplyDoubleClickIndicator(image);
+            selectedImages[image] = true;
+            dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name);
+            Select(2); // Double-click should add 2
+        }
+        else
+        {
+            DisplayMaxSelectionsReached();
+        }
         PlayDoubleClickSound();
         Handheld.Vibrate();
     }
@@ -120,13 +134,13 @@ public class FlavorWheelController : MonoBehaviour
         var hierarchy = FindHierarchy(image);
         if (hierarchy == null) return;
 
-        if (IsGrandchild(image))
+        if (IsGrandchild(image) && dataRecorder.GetSelectionCount() < MAX_SELECTIONS)
         {
             ScaleImage(image, true);
             selectedImages[image] = true;
             Select(1);
         }
-        else
+        else if (!IsGrandchild(image))
         {
             DisableSiblingsOfParent(image);
             EnableImage(image);
@@ -152,7 +166,14 @@ public class FlavorWheelController : MonoBehaviour
     {
         currentNumber += increment;
         UpdateNumberText();
-        StartCoroutine(AnimateNumber("+" + increment));
+        if (dataRecorder.GetSelectionCount() >= MAX_SELECTIONS)
+        {
+            DisplayMaxSelectionsReached();
+        }
+        else
+        {
+            StartCoroutine(AnimateNumber("+" + increment));
+        }
     }
 
     public void Unselect(int decrement = 1)
@@ -162,9 +183,41 @@ public class FlavorWheelController : MonoBehaviour
         StartCoroutine(AnimateNumber("-" + decrement));
     }
 
+    
+
     private void UpdateNumberText()
     {
         numberText.text = currentNumber.ToString();
+    }
+    public void DisplayMaxSelectionsReached()
+    {
+        StartCoroutine(AnimateMaxReachedMessage());
+    }
+    private IEnumerator AnimateMaxReachedMessage()
+    {
+        TMP_Text maxReachedText = Instantiate(numberText, numberText.transform.parent);
+        maxReachedText.text = "Max\nReached";
+        maxReachedText.fontSize = 30; // Starting size
+        maxReachedText.gameObject.SetActive(true);
+        maxReachedText.transform.localPosition = numberText.transform.localPosition;
+
+        float elapsed = 0f;
+        Vector3 startPos = maxReachedText.transform.localPosition;
+        Vector3 targetPos = new Vector3(startPos.x, endpos, startPos.z);
+        float startFontSize = 30f;
+        float endFontSize = 100f;
+
+        while (elapsed < animationDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / animationDuration;
+            maxReachedText.transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
+            maxReachedText.fontSize = Mathf.Lerp(startFontSize, endFontSize, t);
+            maxReachedText.color = new Color(maxReachedText.color.r, maxReachedText.color.g, maxReachedText.color.b, 1 - t);
+            yield return null;
+        }
+
+        Destroy(maxReachedText.gameObject);
     }
 
     private IEnumerator AnimateNumber(string changeText)
@@ -175,12 +228,18 @@ public class FlavorWheelController : MonoBehaviour
         changeTMP.transform.localPosition = numberText.transform.localPosition;
 
         float elapsed = 0f;
-        Vector3 targetPos = new Vector3(changeTMP.transform.localPosition.x, endpos, changeTMP.transform.localPosition.z);
+        Vector3 startPos = changeTMP.transform.localPosition;
+        Vector3 targetPos = new Vector3(startPos.x, endpos, startPos.z);
+        float startFontSize = 50f;
+        float endFontSize = 200f;
 
         while (elapsed < animationDuration)
         {
             elapsed += Time.deltaTime;
-            changeTMP.transform.localPosition = Vector3.Lerp(changeTMP.transform.localPosition, targetPos, elapsed / animationDuration);
+            float t = elapsed / animationDuration;
+            changeTMP.transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
+            changeTMP.fontSize = Mathf.Lerp(startFontSize, endFontSize, t);
+            changeTMP.color = new Color(changeTMP.color.r, changeTMP.color.g, changeTMP.color.b, 1 - t);
             yield return null;
         }
 
@@ -297,6 +356,12 @@ public class FlavorWheelController : MonoBehaviour
         UpdateNumberText();
         selectedImages.Clear();
         ResetHierarchyRecursive(hierarchy);
+    }
+    private IEnumerator ResetMaxSelectionsMessage()
+    {
+        yield return new WaitForSeconds(2f); // Display for 2 seconds
+        isMaxSelectionsReached = false;
+        UpdateNumberText();
     }
 
     private void ResetHierarchyRecursive(ChildHierarchy currentHierarchy)

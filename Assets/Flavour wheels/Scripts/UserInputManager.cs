@@ -32,7 +32,8 @@ public class UserInputManager : MonoBehaviour
 
     // Text components
     public Text drinkCategoryText;
-
+    private Coroutine backgroundCheckCoroutine;
+    private const float checkInterval = 60f; 
     // Lists
     public List<SpiritTextFieldSet> spiritTextFieldSets;
     private List<Button> ratingButtons = new List<Button>();
@@ -137,7 +138,6 @@ public class UserInputManager : MonoBehaviour
 
     private void CheckSubmitButtonInteractivity() =>
         submitButton.interactable = !string.IsNullOrEmpty(usernameInputField.text) && !string.IsNullOrEmpty(passcodeKeyInputField.text);
-
 
     private void LoadCachedAdminData()
     {
@@ -262,12 +262,72 @@ public class UserInputManager : MonoBehaviour
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
+
+                // Start the background check coroutine
+                StartBackgroundCheck(enteredPasscodeKey);
             }
         }
         else
         {
             DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
         }
+    }
+
+    private void StartBackgroundCheck(string initialPasscode)
+    {
+        if (backgroundCheckCoroutine != null)
+        {
+            StopCoroutine(backgroundCheckCoroutine);
+        }
+        backgroundCheckCoroutine = StartCoroutine(BackgroundPasscodeCheck(initialPasscode));
+    }
+
+    private IEnumerator BackgroundPasscodeCheck(string initialPasscode)
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(checkInterval);
+
+            yield return GetAdminData(newData =>
+            {
+                if (newData != null && !newData.passcodeKey.Trim().Equals(initialPasscode, StringComparison.OrdinalIgnoreCase))
+                {
+                    RestartGame();
+                }
+            });
+        }
+    }
+
+    private void RestartGame()
+    {
+        // Stop the background check
+        if (backgroundCheckCoroutine != null)
+        {
+            StopCoroutine(backgroundCheckCoroutine);
+        }
+
+        // Reset UI and game state
+        Transform parentTransform = signInPage.transform.parent;
+        for (int i = 0; i < parentTransform.childCount; i++)
+        {
+            parentTransform.GetChild(i).gameObject.SetActive(false);
+        }
+        signInPage.SetActive(true);
+        // Clear input fields
+        passcodeKeyInputField.text = "";
+        overallExperienceInputField.text = "";
+
+        // Reset rating
+        Rate(0);
+
+        // Display message to user
+        DisplayConnectionError("The game settings have been updated. Please enter the new passcode to continue.");
+
+        // Stop any ongoing processes
+        StopAllCoroutines();
+
+        // Restart data retrieval process
+        dataRetrievalCoroutine = StartCoroutine(LoadAdminDataAtStart());
     }
 
     private IEnumerator RetryAdminDataFetch(string enteredPasscodeKey)

@@ -7,10 +7,14 @@ using System.Collections;
 
 public class FlavorWheelDataRecorder : MonoBehaviour
 {
-    public Transform duplicatedWheel, Rating;
-    public Text spiritNameText;
+    private enum WheelOrder { First = 1, Second, Third, Fourth, Fifth }
+
+    [SerializeField] private Transform duplicatedWheel;
+    [SerializeField] private Transform Rating;
+    [SerializeField] private Text spiritNameText;
     [SerializeField] private AudioClip ratingSound;
 
+    private WheelOrder wheelOrder;
     private Transform names;
     private Text scoreText, scoreTextMain;
     private List<FlavorWheelController> controllers = new List<FlavorWheelController>();
@@ -19,8 +23,14 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     private int currentRating;
     private AudioSource audioSource;
     private SpiritManager spiritManager;
+    private const int MAX_SELECTIONS = 7;
 
-    void Start()
+    private void Awake()
+    {
+        AssignWheelOrder();
+    }
+
+    private void Start()
     {
         InitializeComponents();
         InitializeWheel();
@@ -31,15 +41,17 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     {
         UpdateTextMeshProParents();
     }
+    private void AssignWheelOrder()
+    {
+        int siblingIndex = transform.GetSiblingIndex();
+        wheelOrder = (WheelOrder)Mathf.Clamp(siblingIndex + 1, 1, 5);
+    }
+
     private IEnumerator DelayedUpdateSpiritManager()
     {
         yield return null; // Wait for the next frame
         UpdateSpiritManager();
         spiritManager = FindObjectOfType<SpiritManager>();
-        if (spiritManager == null)
-        {
-            Debug.LogWarning("SpiritManager not found in the scene. Some functionality may be limited.");
-        }
     }
 
     // Initialization methods
@@ -102,12 +114,20 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     // Update methods
     public void RecordFlavor(string imageName, string parentName)
     {
-        if (selectedFlavors.Count >= 7 || selectedFlavors.Any(f => f.imageName == imageName))
+        if (selectedFlavors.Count >= MAX_SELECTIONS || selectedFlavors.Any(f => f.imageName == imageName))
+        {
+            Debug.Log($"Cannot record flavor {imageName}. Max selections reached or flavor already selected.");
             return;
+        }
 
         selectedFlavors.Add((imageName, parentName));
         UpdateNamesDisplay();
         UpdateSpiritManager();
+
+        if (selectedFlavors.Count == MAX_SELECTIONS)
+        {
+            NotifyControllersMaxReached();
+        }
     }
 
     public void UnrecordFlavor(string imageName, string parentName, bool removeParent)
@@ -115,6 +135,16 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         selectedFlavors.RemoveAll(f => f.imageName == imageName && f.parentName == parentName);
         UpdateNamesDisplay();
         UpdateSpiritManager();
+
+        Debug.Log($"Flavor unselected. Current selection count: {selectedFlavors.Count}");
+    }
+
+    private void NotifyControllersMaxReached()
+    {
+        foreach (var controller in controllers)
+        {
+            controller.DisplayMaxSelectionsReached();
+        }
     }
 
     public void Rate(int rating)
@@ -165,7 +195,10 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             }
         }
     }
-
+    public int GetSelectionCount()
+    {
+        return selectedFlavors.Count;
+    }
     private void UpdateTextMeshProParents()
     {
         for (int i = 0; i < names.childCount; i++)
@@ -198,11 +231,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
         if (spiritManager != null)
         {
-            spiritManager.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating);
-        }
-        else
-        {
-            Debug.LogWarning("Attempt to update SpiritManager, but it is not available.");
+            spiritManager.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating, (int)wheelOrder);
         }
     }
 

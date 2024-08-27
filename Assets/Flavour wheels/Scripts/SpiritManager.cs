@@ -12,7 +12,8 @@ public class SpiritManager : MonoBehaviour
     private const float UpdateInterval = 5f;
     public GameObject loadingPanel, overallRatingPanel, resultPanel;
     private Coroutine repeatUpdateCoroutine;
-    private bool isFirstLoadComplete, isReturningToOverallRating;
+    private bool isFirstLoadComplete, isReturningToOverallRating, isUpdatingData = false;
+    private SortedDictionary<int, (string Name, int SelectedFlavors, int Rating)> orderedSpiritData = new SortedDictionary<int, (string, int, int)>();
 
     private void Start()
     {
@@ -45,16 +46,23 @@ public class SpiritManager : MonoBehaviour
 
     private IEnumerator RepeatUpdateProcess()
     {
-        while (resultPanel.activeSelf)
+        while (resultPanel.activeSelf && !isReturningToOverallRating)
         {
             yield return new WaitForSeconds(UpdateInterval);
-            if (resultPanel.activeSelf)
+            if (resultPanel.activeSelf && !isReturningToOverallRating)
+            {
                 yield return UpdatePlayerDataWithPanelManagement();
+            }
         }
     }
 
     private IEnumerator UpdatePlayerDataWithPanelManagement()
     {
+        if (isReturningToOverallRating)
+        {
+            yield break;
+        }
+
         bool isDataProcessedSuccessfully = false;
         yield return UpdatePlayerData(() => isDataProcessedSuccessfully = true);
 
@@ -62,6 +70,7 @@ public class SpiritManager : MonoBehaviour
         {
             loadingPanel.SetActive(false);
             resultPanel.SetActive(true);
+            overallRatingPanel.SetActive(false);
             if (!isFirstLoadComplete)
             {
                 isFirstLoadComplete = true;
@@ -72,6 +81,7 @@ public class SpiritManager : MonoBehaviour
         {
             loadingPanel.SetActive(false);
             overallRatingPanel.SetActive(true);
+            resultPanel.SetActive(false);
         }
     }
 
@@ -115,14 +125,22 @@ public class SpiritManager : MonoBehaviour
         }
     }
 
-    public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating)
+    public void ReceiveSpiritData(string spiritName, int selectedFlavors, int rating, int order)
     {
-        if (!dataManager.spiritNames.Contains(spiritName))
-            dataManager.spiritNames.Add(spiritName);
+        orderedSpiritData[order] = (spiritName, selectedFlavors, rating);
 
-        dataManager.spiritData[spiritName] = new DataManager.SpiritInfo(spiritName, selectedFlavors, rating);
+        UpdateDataManager();
+    }
+    private void UpdateDataManager()
+    {
+        dataManager.ClearSpiritData();
+        foreach (var kvp in orderedSpiritData)
+        {
+            dataManager.AddSpiritData(kvp.Value.Name, kvp.Value.SelectedFlavors, kvp.Value.Rating);
+        }
 
-        uiManager.UpdateFlavourTable2LocalData(dataManager.spiritNames, dataManager.spiritData);
+        // Update UI
+        uiManager.UpdateFlavourTable2LocalData(dataManager.GetOrderedSpiritNames(), dataManager.GetOrderedSpiritData());
         uiManager.UpdateRankings();
     }
 
@@ -138,11 +156,25 @@ public class SpiritManager : MonoBehaviour
     public void ReturnToOverallRating()
     {
         isReturningToOverallRating = true;
+        StopAllCoroutines();
         StopRepeatUpdateProcess();
+
+        loadingPanel.SetActive(false);
         resultPanel.SetActive(false);
         overallRatingPanel.SetActive(true);
+
+        isFirstLoadComplete = false;
+        StartCoroutine(ResetReturnFlag());
+    }
+    private IEnumerator ResetReturnFlag()
+    {
+        yield return new WaitForSeconds(0.5f);
         isReturningToOverallRating = false;
     }
 
-    private void OnDisable() => StopRepeatUpdateProcess();
+    private void OnDisable()
+    {
+        StopAllCoroutines();
+        StopRepeatUpdateProcess();
+    }
 }

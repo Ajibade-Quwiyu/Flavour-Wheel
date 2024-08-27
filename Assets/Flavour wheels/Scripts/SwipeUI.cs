@@ -23,7 +23,6 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         UpdatePanelPositions();
         UpdatePointerGraphics();
         UpdateIndicatorDots();
-        UpdateActiveMainPanelSiblingIndex();
         UpdateZoomTargetTag();
     }
 
@@ -89,6 +88,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
             canvasGroup.alpha = (correspondingPointerIndex == currentPointerIndex) ? 1f : 0.5f;
         }
     }
+
     private void UpdatePanelPositions()
     {
         for (int i = 0; i < mainPanels.Length; i++)
@@ -97,7 +97,6 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
             Vector2 targetPosition = new Vector2(targetX * canvasRectTransform.rect.width, 0);
             StartCoroutine(MovePanel(mainPanels[i], targetPosition));
         }
-        UpdateActiveMainPanelSiblingIndex();
     }
 
     private void UpdatePointerGraphics()
@@ -140,6 +139,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         for (int i = 0; i < pointerGraphics.Length; i++)
             StartCoroutine(MovePanel(pointerGraphics[i], new Vector2((i - currentPointerIndex) * pointerWidth, 0)));
     }
+
     private void EnsureCanvasGroupComponents()
     {
         foreach (RectTransform pointer in pointerGraphics.Concat(indicatorDots))
@@ -159,11 +159,6 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
         panel.anchoredPosition = targetPosition;
     }
 
-    private void UpdateActiveMainPanelSiblingIndex()
-    {
-        if (mainPanels.Length > 0 && currentMainPanelIndex >= 0 && currentMainPanelIndex < mainPanels.Length)
-            mainPanels[currentMainPanelIndex].SetAsLastSibling();
-    }
     private void UpdateZoomTargetTag()
     {
         for (int i = 0; i < mainPanels.Length; i++)

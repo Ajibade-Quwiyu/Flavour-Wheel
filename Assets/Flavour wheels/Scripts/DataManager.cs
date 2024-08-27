@@ -17,7 +17,8 @@ public class DataManager : MonoBehaviour
     public Dictionary<string, SpiritInfo> spiritData = new Dictionary<string, SpiritInfo>();
     public List<string> spiritNames = new List<string>();
     private const string playerEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel", UserIdKey = "UserId";
-
+    private List<string> orderedSpiritNames = new List<string>();
+    private Dictionary<string, SpiritInfo> orderedSpiritData = new Dictionary<string, SpiritInfo>();
 
     public IEnumerator FetchPlayerData(System.Action<PlayerDataList> onSuccess, System.Action<string> onError)
     {
@@ -127,22 +128,47 @@ public class DataManager : MonoBehaviour
             spiritScores[spiritName] = spiritScores.TryGetValue(spiritName, out float existingScore) ? existingScore + score : score;
     }
 
+    public void ClearSpiritData()
+    {
+        orderedSpiritNames.Clear();
+        orderedSpiritData.Clear();
+    }
+
+    public void AddSpiritData(string name, int selectedFlavors, int rating)
+    {
+        if (!orderedSpiritNames.Contains(name))
+        {
+            orderedSpiritNames.Add(name);
+        }
+        orderedSpiritData[name] = new SpiritInfo(name, selectedFlavors, rating);
+    }
+
+    public List<string> GetOrderedSpiritNames()
+    {
+        return new List<string>(orderedSpiritNames);
+    }
+
+    public Dictionary<string, SpiritInfo> GetOrderedSpiritData()
+    {
+        return new Dictionary<string, SpiritInfo>(orderedSpiritData);
+    }
+
     public string GetSpiritName(int index)
     {
-        return spiritNames.Count > index ? spiritNames[index] : "";
+        return orderedSpiritNames.Count > index ? orderedSpiritNames[index] : "";
     }
 
     public int GetSpiritFlavor(int index)
     {
-        return spiritNames.Count > index && spiritData.ContainsKey(spiritNames[index])
-            ? spiritData[spiritNames[index]].SelectedFlavors
+        return orderedSpiritNames.Count > index && orderedSpiritData.ContainsKey(orderedSpiritNames[index])
+            ? orderedSpiritData[orderedSpiritNames[index]].SelectedFlavors
             : 0;
     }
 
     public int GetSpiritRating(int index)
     {
-        return spiritNames.Count > index && spiritData.ContainsKey(spiritNames[index])
-            ? spiritData[spiritNames[index]].Rating
+        return orderedSpiritNames.Count > index && orderedSpiritData.ContainsKey(orderedSpiritNames[index])
+            ? orderedSpiritData[orderedSpiritNames[index]].Rating
             : 0;
     }
     public void UpdateSpiritNamesListFromServer(List<PlayerData> players, string currentUsername)

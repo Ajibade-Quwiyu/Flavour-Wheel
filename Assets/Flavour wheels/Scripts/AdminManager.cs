@@ -20,6 +20,7 @@ public class AdminManager : MonoBehaviour
     public User currentUser = User.Admin;
 
     private const string AdminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
+    private const string FlavourWheelEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel";
     private const string PasskeyPrefKey = "AdminPasskey";
     private const int PasskeyLength = 8;
 
@@ -138,10 +139,33 @@ public class AdminManager : MonoBehaviour
         {
             try
             {
-                await client.DeleteAsync(AdminEndpoint);
+                // Attempt to delete all content from the flavour wheel server
+                var deleteResponse = await client.DeleteAsync(FlavourWheelEndpoint);
+                if (deleteResponse.IsSuccessStatusCode)
+                {
+                    Debug.Log($"Flavour wheel server delete response: {deleteResponse.StatusCode}");
+                }
+                else
+                {
+                    Debug.LogWarning($"Failed to delete flavour wheel data. Status: {deleteResponse.StatusCode}");
+                    string errorContent = await deleteResponse.Content.ReadAsStringAsync();
+                    Debug.LogWarning($"Error content: {errorContent}");
+                }
+
+                // Delete existing admin data
+                var adminDeleteResponse = await client.DeleteAsync(AdminEndpoint);
+                Debug.Log($"Admin server delete response: {adminDeleteResponse.StatusCode}");
+
+                // Post new admin data
                 var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(AdminEndpoint, content);
-                Debug.Log($"Server response: {response.StatusCode}");
+                var postResponse = await client.PostAsync(AdminEndpoint, content);
+                Debug.Log($"Admin server post response: {postResponse.StatusCode}");
+
+                if (!postResponse.IsSuccessStatusCode)
+                {
+                    string errorContent = await postResponse.Content.ReadAsStringAsync();
+                    Debug.LogError($"Failed to update admin server. Status: {postResponse.StatusCode}, Content: {errorContent}");
+                }
             }
             catch (HttpRequestException e)
             {
