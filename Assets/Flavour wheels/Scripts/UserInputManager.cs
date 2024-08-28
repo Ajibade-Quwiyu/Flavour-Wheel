@@ -73,8 +73,6 @@ public class UserInputManager : MonoBehaviour
 
         submitButton.onClick.AddListener(OnSubmitButtonClicked);
 
-        submitButton.interactable = false;
-
         incorrectPasscodeIndicator.SetActive(false);
 
         signInPage.SetActive(true);

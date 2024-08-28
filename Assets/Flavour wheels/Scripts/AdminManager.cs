@@ -47,7 +47,14 @@ public class AdminManager : MonoBehaviour
         signinPage.SetActive(!isAdmin);
         userInputManager.enabled = !isAdmin;
     }
-
+    public void SetAdmin()
+    {
+     currentUser=User.Admin;
+    }
+    public void SetPlayer()
+    {
+     currentUser=User.Player;
+    }
     private void LoadData()
     {
         LoadPlayerPrefs("DrinkCategory", drinkCategoryDropdown, "BOURBON");
