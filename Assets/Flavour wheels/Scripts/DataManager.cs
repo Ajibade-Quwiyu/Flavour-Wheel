@@ -130,12 +130,14 @@ public class DataManager : MonoBehaviour
 
     public void ClearSpiritData()
     {
+        Debug.Log("Clearing spirit data");
         orderedSpiritNames.Clear();
         orderedSpiritData.Clear();
     }
 
     public void AddSpiritData(string name, int selectedFlavors, int rating)
     {
+        Debug.Log($"Adding spirit data: Name={name}, Flavors={selectedFlavors}, Rating={rating}");
         if (!orderedSpiritNames.Contains(name))
         {
             orderedSpiritNames.Add(name);
@@ -193,7 +195,7 @@ public class DataManager : MonoBehaviour
             .ForEach(key => spiritData.Remove(key));
     }
 
-    private int GetUserId() => PlayerPrefs.GetInt(UserIdKey, 0);
+    public int GetUserId() => PlayerPrefs.GetInt(UserIdKey, 0);
 
     private void SaveUserId(int id)
     {

@@ -18,7 +18,7 @@ public class UserInputManager : MonoBehaviour
 
     // InputFields
     public TMP_InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
-
+    public TMP_Text myName;
     // Transforms
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;
@@ -223,9 +223,9 @@ public class UserInputManager : MonoBehaviour
         while (isDataRetrievalInProgress)
         {
             indicatorText.text = "Please wait.....";
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(2f);
             indicatorText.text = "Loading......";
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(2f);
         }
         incorrectPasscodeIndicator.SetActive(false);
     }
@@ -260,7 +260,7 @@ public class UserInputManager : MonoBehaviour
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
-
+                myName.text=usernameInputField.text;
                 // Start the background check coroutine
                 StartBackgroundCheck(enteredPasscodeKey);
             }

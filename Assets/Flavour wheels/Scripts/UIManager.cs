@@ -7,7 +7,7 @@ using System;
 
 public class UIManager : MonoBehaviour
 {
-    public Transform localTopThree, generalTopThree, FlavourTable1, FlavourTable2;
+    public Transform localTopThree, generalTopThree, FlavourTable1a, FlavourTable1b, FlavourTable2;
     public GameObject flavourRowPrefab;
     private Dictionary<string, int> spiritRanks = new Dictionary<string, int>();
     private Dictionary<string, int> localFlavors = new Dictionary<string, int>();
@@ -15,16 +15,54 @@ public class UIManager : MonoBehaviour
 
     public void UpdateFlavourTable(List<DataManager.PlayerData> players)
     {
-        ClearFlavourTable1();
+        ClearFlavourTables();
         int maxRowsToShow = Mathf.Min(players.Count, 10);
         for (int i = 0; i < maxRowsToShow; i++)
-            CreateFlavourTableRow(i, players[i]);
+        {
+            CreateFlavourTableRow(FlavourTable1a, i, players[i], true);
+            CreateFlavourTableRow(FlavourTable1b, i, players[i], false);
+        }
     }
 
-    private void ClearFlavourTable1()
+    private void ClearFlavourTables()
     {
-        foreach (Transform child in FlavourTable1)
+        foreach (Transform child in FlavourTable1a)
             Destroy(child.gameObject);
+        foreach (Transform child in FlavourTable1b)
+            Destroy(child.gameObject);
+    }
+
+    private void CreateFlavourTableRow(Transform parent, int rowIndex, DataManager.PlayerData player, bool isFlavourTable)
+    {
+        var row = Instantiate(flavourRowPrefab, parent);
+        if (row != null) SetRowData(row, rowIndex, player, isFlavourTable);
+    }
+
+    private void SetRowData(GameObject row, int rowIndex, DataManager.PlayerData player, bool isFlavourTable)
+    {
+        SetText(row.transform.GetChild(0), (rowIndex + 1).ToString());
+        SetText(row.transform.GetChild(1), player.username);
+
+        int[] values = isFlavourTable
+            ? new int[] { player.spirit1Flavours, player.spirit2Flavours, player.spirit3Flavours, player.spirit4Flavours, player.spirit5Flavours }
+            : new int[] { player.spirit1Ratings, player.spirit2Ratings, player.spirit3Ratings, player.spirit4Ratings, player.spirit5Ratings };
+
+        for (int i = 0; i < values.Length; i++)
+            SetCellData(row.transform.GetChild(2 + i), values[i], isFlavourTable);
+
+        SetStarRating(row.transform.GetChild(7), player.overallRating);
+    }
+
+    private void SetCellData(Transform cellTransform, int value, bool isFlavourTable)
+    {
+        cellTransform.GetComponent<Image>().color = GetCellColor(value, isFlavourTable);
+        SetText(cellTransform.GetChild(0), value.ToString());
+    }
+
+    private Color GetCellColor(int value, bool isFlavourTable)
+    {
+        float normalizedValue = isFlavourTable ? Mathf.Clamp01(value / 7f) : Mathf.Clamp01(value / 5f);
+        return Color.Lerp(Color.yellow, Color.green, normalizedValue);
     }
 
     public void UpdateFlavourTable2AverageData(float[] averageRatings, float[] averageFlavours)
@@ -162,13 +200,7 @@ public class UIManager : MonoBehaviour
     private float GetFloatFromChild(Transform parent, int index) =>
         float.TryParse(parent.GetChild(index).GetComponent<TMP_Text>().text, out float result) ? result : 0f;
 
-    public void HideFetchingPlaceholders() => ClearFlavourTable1();
-
-    private void CreateFlavourTableRow(int rowIndex, DataManager.PlayerData player)
-    {
-        var row = Instantiate(flavourRowPrefab, FlavourTable1);
-        if (row != null) SetRowData(row, rowIndex, player);
-    }
+    public void HideFetchingPlaceholders() => ClearFlavourTables();
 
     private void SetRowData(GameObject row, int rowIndex, DataManager.PlayerData player)
     {
