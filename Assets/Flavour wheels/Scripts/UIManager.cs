@@ -7,7 +7,7 @@ using System;
 
 public class UIManager : MonoBehaviour
 {
-    public Transform localTopThree, generalTopThree, FlavourTable1a, FlavourTable1b, FlavourTable2;
+    public Transform localTopThree, generalTopThree, FlavourTable1_Flavour, FlavourTable1_Rating, FlavourTable2;
     public GameObject flavourRowPrefab;
     private Dictionary<string, int> spiritRanks = new Dictionary<string, int>();
     private Dictionary<string, int> localFlavors = new Dictionary<string, int>();
@@ -19,16 +19,16 @@ public class UIManager : MonoBehaviour
         int maxRowsToShow = Mathf.Min(players.Count, 10);
         for (int i = 0; i < maxRowsToShow; i++)
         {
-            CreateFlavourTableRow(FlavourTable1a, i, players[i], true);
-            CreateFlavourTableRow(FlavourTable1b, i, players[i], false);
+            CreateFlavourTableRow(FlavourTable1_Flavour, i, players[i], true);
+            CreateFlavourTableRow(FlavourTable1_Rating, i, players[i], false);
         }
     }
 
     private void ClearFlavourTables()
     {
-        foreach (Transform child in FlavourTable1a)
+        foreach (Transform child in FlavourTable1_Flavour)
             Destroy(child.gameObject);
-        foreach (Transform child in FlavourTable1b)
+        foreach (Transform child in FlavourTable1_Rating)
             Destroy(child.gameObject);
     }
 

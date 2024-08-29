@@ -220,10 +220,11 @@ public class UserInputManager : MonoBehaviour
     {
         incorrectPasscodeIndicator.SetActive(true);
         TMP_Text indicatorText = incorrectPasscodeIndicator.GetComponent<TMP_Text>();
+        incorrectPasscodeIndicator.GetComponent<TMP_Text>().color = Color.white;
         while (isDataRetrievalInProgress)
         {
             indicatorText.text = "Please wait.....";
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(4f);
             indicatorText.text = "Loading......";
             yield return new WaitForSeconds(2f);
         }
@@ -245,7 +246,7 @@ public class UserInputManager : MonoBehaviour
             DisplayConnectionError("No data available. Please check your internet connection and try again.");
             return;
         }
-
+        myName.text = usernameInputField.text;
         if (cachedAdminData.passcodeKey.Trim().Equals(enteredPasscodeKey, System.StringComparison.OrdinalIgnoreCase))
         {
             if (isOfflineMode)
@@ -260,7 +261,7 @@ public class UserInputManager : MonoBehaviour
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
-                myName.text=usernameInputField.text;
+                
                 // Start the background check coroutine
                 StartBackgroundCheck(enteredPasscodeKey);
             }
@@ -341,12 +342,14 @@ public class UserInputManager : MonoBehaviour
         loadingPanel.SetActive(false);
         signInPage.SetActive(true);
         incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
+        incorrectPasscodeIndicator.GetComponent<TMP_Text>().color = Color.red;
         incorrectPasscodeIndicator.SetActive(true);
     }
 
     private void DisplayIncorrectPasscodeMessage(string message)
     {
         incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
+        incorrectPasscodeIndicator.GetComponent<TMP_Text>().color = Color.red;
         incorrectPasscodeIndicator.SetActive(true);
         loadingPanel.SetActive(false);
         signInPage.SetActive(true);
