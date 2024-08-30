@@ -18,7 +18,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     private Transform names;
     private Text scoreText, scoreTextMain;
     private List<FlavorWheelController> controllers = new List<FlavorWheelController>();
-    private List<(string imageName, string parentName)> selectedFlavors = new List<(string, string)>();
+    private List<(string imageName, string parentName, bool isDoubleClick)> selectedFlavors = new List<(string, string, bool)>();
     private List<Button> ratingButtons = new List<Button>();
     private int currentRating;
     private AudioSource audioSource;
@@ -112,7 +112,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     }
 
     // Update methods
-    public void RecordFlavor(string imageName, string parentName)
+    public void RecordFlavor(string imageName, string parentName, bool isDoubleClick)
     {
         if (selectedFlavors.Count >= MAX_SELECTIONS || selectedFlavors.Any(f => f.imageName == imageName))
         {
@@ -120,7 +120,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             return;
         }
 
-        selectedFlavors.Add((imageName, parentName));
+        selectedFlavors.Add((imageName, parentName, isDoubleClick));
         UpdateNamesDisplay();
         UpdateSpiritManager();
 
@@ -129,7 +129,6 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             NotifyControllersMaxReached();
         }
     }
-
     public void UnrecordFlavor(string imageName, string parentName, bool removeParent)
     {
         selectedFlavors.RemoveAll(f => f.imageName == imageName && f.parentName == parentName);
@@ -174,6 +173,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         for (int i = 0; i < names.childCount; i++)
         {
             Transform nameChild = names.GetChild(i);
+            Image nameholderImage = nameChild.GetComponent<Image>();
             TextMeshProUGUI textMeshPro = nameChild.GetComponentInChildren<TextMeshProUGUI>();
 
             if (i < selectedFlavors.Count)
@@ -183,7 +183,14 @@ public class FlavorWheelDataRecorder : MonoBehaviour
                 {
                     textMeshPro.text = selectedFlavors[i].imageName;
                 }
-                EnableImageAndParentsInDuplicatedWheel(selectedFlavors[i].imageName);
+                if (nameholderImage != null)
+                {
+                    // Set alpha based on whether it's a double click or not
+                    Color imageColor = nameholderImage.color;
+                    imageColor.a = selectedFlavors[i].isDoubleClick ? 1f : 100f / 255f;
+                    nameholderImage.color = imageColor;
+                }
+                EnableImageAndParentsInDuplicatedWheel(selectedFlavors[i].imageName, selectedFlavors[i].isDoubleClick);
             }
             else
             {
@@ -278,14 +285,22 @@ public class FlavorWheelDataRecorder : MonoBehaviour
     }
 
     // Utility methods
-    private void EnableImage(Image image)
+    private void EnableImage(Image image, bool isDoubleClick)
     {
         if (image == null) return;
         image.gameObject.SetActive(true);
-        image.color = Color.white;
+        if (image.transform.childCount == 0) // Only change color for leaf nodes (grandchildren)
+        {
+            Color imageColor = isDoubleClick ? Color.yellow : Color.white;
+            imageColor.a = 1f; // Ensure full opacity for the actual flavor images
+            image.color = imageColor;
+        }
+        else
+        {
+            image.color = Color.white;
+        }
         if (image.TryGetComponent(out Collider2D collider)) collider.enabled = true;
     }
-
     private void DisableImage(Image image)
     {
         if (image == null) return;
@@ -307,7 +322,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         }
     }
 
-    private void EnableImageAndParentsInDuplicatedWheel(string imageName)
+     private void EnableImageAndParentsInDuplicatedWheel(string imageName, bool isDoubleClick)
     {
         for (int i = 1; i < duplicatedWheel.childCount; i++)
         {
@@ -315,13 +330,12 @@ public class FlavorWheelDataRecorder : MonoBehaviour
             Transform target = FindChildRecursive(wheelChild, imageName);
             if (target != null)
             {
-                EnableImage(target.GetComponent<Image>());
+                EnableImage(target.GetComponent<Image>(), isDoubleClick);
                 EnableParentImages(target);
                 break;
             }
         }
     }
-
     private Transform FindChildRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
@@ -345,11 +359,14 @@ public class FlavorWheelDataRecorder : MonoBehaviour
         while (parent != null)
         {
             if (parent.TryGetComponent(out Image parentImage))
-                EnableImage(parentImage);
+            {
+                parentImage.gameObject.SetActive(true);
+                parentImage.color = Color.white;
+                if (parentImage.TryGetComponent(out Collider2D collider)) collider.enabled = true;
+            }
             parent = parent.parent;
         }
     }
-
     private void PlayClickSound()
     {
         if (audioSource && ratingSound)

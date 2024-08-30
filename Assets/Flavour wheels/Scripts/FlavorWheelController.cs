@@ -27,6 +27,8 @@ public class FlavorWheelController : MonoBehaviour
     public AudioClip clickClip, doubleClickClip;
     private AudioSource audioSource;
     private Dictionary<Image, bool> selectedImages = new Dictionary<Image, bool>();
+    private Dictionary<Image, bool> doubleClickedImages = new Dictionary<Image, bool>();
+    private HashSet<Image> selectedParentImages = new HashSet<Image>();
     private const int MAX_SELECTIONS = 7;
     private bool isMaxSelectionsReached = false;
 
@@ -73,17 +75,31 @@ public class FlavorWheelController : MonoBehaviour
         var hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
         if (hit.collider?.GetComponent<Image>() is Image image && IsPartOfHierarchy(image))
         {
-            isDoubleClick = Time.time - lastClickTime <= doubleClickTime;
-            if (isDoubleClick)
+            if (image == GetComponent<Image>())
             {
-                HandleDoubleClick(image);
+                HandleMainImageClick();
             }
             else
             {
-                StartCoroutine(HandleSingleClick(image));
+                isDoubleClick = Time.time - lastClickTime <= doubleClickTime;
+                if (isDoubleClick)
+                {
+                    HandleDoubleClick(image);
+                }
+                else
+                {
+                    StartCoroutine(HandleSingleClick(image));
+                }
             }
             lastClickTime = Time.time;
         }
+    }
+
+    private void HandleMainImageClick()
+    {
+        // Enable all immediate children of the main image
+        hierarchy.children.ForEach(child => EnableImage(child.image));
+        selectedParentImages.Clear(); // Clear selected parents when main image is clicked
     }
 
     private IEnumerator HandleSingleClick(Image image)
@@ -91,7 +107,30 @@ public class FlavorWheelController : MonoBehaviour
         yield return new WaitForSeconds(doubleClickTime);
         if (!isDoubleClick)
         {
-            ToggleImageState(image);
+            if (IsGrandchild(image))
+            {
+                if (selectedImages.TryGetValue(image, out bool isSelected) && isSelected)
+                {
+                    UnselectImage(image);
+                }
+                else if (dataRecorder.GetSelectionCount() < MAX_SELECTIONS)
+                {
+                    SelectImage(image, false);
+                    ScaleImage(image, true);
+                    selectedImages[image] = true;
+                    doubleClickedImages[image] = false;
+                    dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name, false);
+                    Select(1);
+                }
+                else
+                {
+                    DisplayMaxSelectionsReached();
+                }
+            }
+            else
+            {
+                ToggleImageState(image);
+            }
             PlayClickSound();
         }
     }
@@ -106,12 +145,13 @@ public class FlavorWheelController : MonoBehaviour
         }
         else if (dataRecorder.GetSelectionCount() < MAX_SELECTIONS)
         {
-            SelectImage(image);
+            SelectImage(image, true);
             ScaleImage(image, true);
             ApplyDoubleClickIndicator(image);
             selectedImages[image] = true;
-            dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name);
-            Select(2); // Double-click should add 2
+            doubleClickedImages[image] = true;
+            dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name, true);
+            Select(2);
         }
         else
         {
@@ -120,16 +160,92 @@ public class FlavorWheelController : MonoBehaviour
         PlayDoubleClickSound();
         Handheld.Vibrate();
     }
-
     // Image state management methods
     private void ToggleImageState(Image image)
     {
         if (image == null) return;
-        (selectedImages.TryGetValue(image, out bool isSelected) && isSelected ?
-            (Action<Image>)UnselectImage : SelectImage)(image);
+
+        if (IsGrandchild(image))
+        {
+            if (selectedImages.TryGetValue(image, out bool isSelected) && isSelected)
+            {
+                UnselectImage(image);
+            }
+            else if (dataRecorder.GetSelectionCount() < MAX_SELECTIONS)
+            {
+                SelectImage(image, false);
+                ScaleImage(image, true);
+                selectedImages[image] = true;
+                doubleClickedImages[image] = false;
+                dataRecorder?.RecordFlavor(image.name, image.transform.parent?.name, false);
+                Select(1);
+            }
+            else
+            {
+                DisplayMaxSelectionsReached();
+            }
+        }
+        else // Parent image
+        {
+            var hierarchy = FindHierarchy(image);
+            if (hierarchy != null)
+            {
+                bool wasEnabled = image.color == Color.white;
+                if (wasEnabled)
+                {
+                    // If the parent was enabled, toggle its children
+                    bool anyChildEnabled = hierarchy.children.Any(child => child.image.color == Color.white);
+                    if (anyChildEnabled)
+                    {
+                        // Disable all children
+                        foreach (var child in hierarchy.children)
+                        {
+                            DarkenAndDisable(child.image);
+                            UnselectAllGrandchildren(child);
+                        }
+                    }
+                    else
+                    {
+                        // Enable all children
+                        foreach (var child in hierarchy.children)
+                        {
+                            EnableImage(child.image);
+                        }
+                    }
+                }
+                else
+                {
+                    // If the parent was disabled, enable it and its children
+                    DisableSiblingsOfParent(image);
+                    EnableImage(image);
+                    foreach (var child in hierarchy.children)
+                    {
+                        EnableImage(child.image);
+                    }
+                }
+            }
+        }
     }
 
-    private void SelectImage(Image image)
+    private void UnselectAllGrandchildren(ChildHierarchy parent)
+    {
+        foreach (var child in parent.children)
+        {
+            if (child.children.Count == 0) // This is a grandchild
+            {
+                if (selectedImages.TryGetValue(child.image, out bool isSelected) && isSelected)
+                {
+                    UnselectImage(child.image);
+                }
+            }
+            else
+            {
+                UnselectAllGrandchildren(child);
+            }
+        }
+    }
+
+    private void SelectImage(Image image, bool isDoubleClick)
     {
         var hierarchy = FindHierarchy(image);
         if (hierarchy == null) return;
@@ -138,7 +254,11 @@ public class FlavorWheelController : MonoBehaviour
         {
             ScaleImage(image, true);
             selectedImages[image] = true;
-            Select(1);
+            EnableImage(image);
+            if (isDoubleClick)
+            {
+                ApplyDoubleClickIndicator(image);
+            }
         }
         else if (!IsGrandchild(image))
         {
@@ -147,20 +267,35 @@ public class FlavorWheelController : MonoBehaviour
             hierarchy.children.ForEach(child => EnableImage(child.image));
         }
     }
-
     private void UnselectImage(Image image)
     {
         bool anySiblingSelected = image.transform.parent.GetComponentsInChildren<Image>()
             .Any(siblingImage => siblingImage != image && selectedImages.TryGetValue(siblingImage, out bool selected) && selected);
 
         dataRecorder?.UnrecordFlavor(image.name, image.transform.parent?.name, !anySiblingSelected);
-        int decrementAmount = (image.color == doubleClickColor) ? 2 : 1;
         RemoveDoubleClickIndicator(image);
         ScaleImage(image, false);
+        
+        int decrementAmount = doubleClickedImages.TryGetValue(image, out bool isDoubleClicked) && isDoubleClicked ? 2 : 1;
         selectedImages.Remove(image);
+        doubleClickedImages.Remove(image);
         Unselect(decrementAmount);
     }
-
+    private void DisableSiblingsOfParent(Image image)
+    {
+        ChildHierarchy parentHierarchy = FindParentHierarchy(image);
+        if (parentHierarchy != null)
+        {
+            foreach (var sibling in parentHierarchy.children)
+            {
+                if (sibling.image != image)
+                {
+                    DarkenAndDisable(sibling.image);
+                    UnselectAllGrandchildren(sibling);
+                }
+            }
+        }
+    }
     // Counter management methods
     public void Select(int increment = 1)
     {
@@ -182,8 +317,6 @@ public class FlavorWheelController : MonoBehaviour
         UpdateNumberText();
         StartCoroutine(AnimateNumber("-" + decrement));
     }
-
-    
 
     private void UpdateNumberText()
     {
@@ -269,13 +402,21 @@ public class FlavorWheelController : MonoBehaviour
     private void EnableImage(Image image)
     {
         if (image == null) return;
-        image.color = Color.white;
+        image.gameObject.SetActive(true);
+        if (IsGrandchild(image))
+        {
+            image.color = selectedImages.TryGetValue(image, out bool isSelected) && isSelected ? 
+                (image.color == doubleClickColor ? doubleClickColor : Color.white) : Color.white;
+        }
+        else
+        {
+            image.color = Color.white;
+        }
         if (image.TryGetComponent(out Collider2D collider))
         {
             collider.enabled = true;
         }
     }
-
     private void ScaleImage(Image image, bool scaleUp)
     {
         if (image == null) return;
@@ -288,24 +429,21 @@ public class FlavorWheelController : MonoBehaviour
             : originalScales[image];
     }
 
-    private void ApplyDoubleClickIndicator(Image image)
+     private void ApplyDoubleClickIndicator(Image image)
     {
-        if (image != null) image.color = doubleClickColor;
+        if (image != null && IsGrandchild(image))
+        {
+            image.color = doubleClickColor;
+        }
     }
 
     private void RemoveDoubleClickIndicator(Image image)
     {
-        if (image != null) image.color = Color.white;
+        if (image != null && IsGrandchild(image))
+        {
+            image.color = Color.white;
+        }
     }
-
-    private void DisableSiblingsOfParent(Image image)
-    {
-        FindParentHierarchy(image)?.children
-            .Where(sibling => sibling.image != image)
-            .ToList()
-            .ForEach(sibling => DarkenAndDisable(sibling.image));
-    }
-
     // Hierarchy navigation methods
     private ChildHierarchy FindParentHierarchy(Image image) =>
         FindParentHierarchyRecursive(hierarchy, image);

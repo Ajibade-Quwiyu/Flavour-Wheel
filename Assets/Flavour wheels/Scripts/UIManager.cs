@@ -11,7 +11,7 @@ public class UIManager : MonoBehaviour
     public GameObject flavourRowPrefab;
     private Dictionary<string, int> spiritRanks = new Dictionary<string, int>();
     private Dictionary<string, int> localFlavors = new Dictionary<string, int>();
-
+    private Dictionary<string, float> localCalculatedValues = new Dictionary<string, float>();
 
     public void UpdateFlavourTable(List<DataManager.PlayerData> players)
     {
@@ -164,17 +164,24 @@ public class UIManager : MonoBehaviour
     }
     private void UpdateLocalTopThree()
     {
-        var sortedLocalSpirits = localFlavors.OrderByDescending(pair => pair.Value).Take(3).Select(pair => pair.Key).ToList();
-        for (int i = 0; i < localTopThree.childCount; i++)
-            SetText(localTopThree.GetChild(i), i < sortedLocalSpirits.Count ? sortedLocalSpirits[i] : string.Empty);
-    }
+        var sortedLocalSpirits = localCalculatedValues
+            .OrderByDescending(pair => pair.Value)
+            .Take(3)
+            .Select(pair => pair.Key)
+            .ToList();
 
+        for (int i = 0; i < localTopThree.childCount; i++)
+        {
+            SetText(localTopThree.GetChild(i), i < sortedLocalSpirits.Count ? sortedLocalSpirits[i] : string.Empty);
+        }
+    }
     public void UpdateFlavourTable2LocalData(List<string> spiritNames, Dictionary<string, DataManager.SpiritInfo> spiritData)
     {
         var localRatingsTransform = FlavourTable2.GetChild(0);
         var localFlavoursTransform = FlavourTable2.GetChild(2);
 
-        localFlavors.Clear(); // Clear previous local flavors
+        localFlavors.Clear();
+        localCalculatedValues.Clear();
 
         for (int i = 0; i < 5; i++)
         {
@@ -183,14 +190,18 @@ public class UIManager : MonoBehaviour
             {
                 ratingText = spirit.Rating.ToString();
                 flavourText = spirit.SelectedFlavors.ToString();
-                localFlavors[spiritNames[i]] = spirit.SelectedFlavors; // Store local flavors
+                localFlavors[spiritNames[i]] = spirit.SelectedFlavors;
+                
+                // Calculate and store the local rating * local flavors
+                float calculatedValue = spirit.Rating * spirit.SelectedFlavors;
+                localCalculatedValues[spiritNames[i]] = calculatedValue;
             }
 
             SetText(localRatingsTransform.GetChild(i), ratingText);
             SetText(localFlavoursTransform.GetChild(i), flavourText);
         }
 
-        UpdateLocalTopThree(); // Update local top three after updating local data
+        UpdateLocalTopThree();
     }
     public float GetLocalDataRating(int index) => GetFloatFromChild(FlavourTable2.GetChild(0), index);
     public float GetLocalDataFlavour(int index) => GetFloatFromChild(FlavourTable2.GetChild(2), index);

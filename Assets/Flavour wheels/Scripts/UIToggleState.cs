@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
-using TMPro; // Include this for TextMeshPro support
-using UnityEngine.UI; // Include this for Unity UI Text support
+using TMPro;
+using UnityEngine.UI;
 using System.Text;
 
 [System.Serializable]
@@ -15,25 +15,50 @@ public class UIToggleState : MonoBehaviour
 {
     [SerializeField] private GameObject spanish;
     [SerializeField] private GameObject english;
-    private bool lang;
+    private bool isEnglish; // true for English, false for Spanish
 
     public List<WordPair> wordPairs = new List<WordPair>();
 
-    public void language()
+    private const string LanguagePrefsKey = "SelectedLanguage";
+
+    private void Start()
     {
-        lang = !lang;
-        if (lang)
+        LoadLanguagePreference();
+        SetActiveLanguage();
+    }
+
+    private void LoadLanguagePreference()
+    {
+        // Load the saved language preference (default to English if not set)
+        isEnglish = PlayerPrefs.GetInt(LanguagePrefsKey, 1) == 1;
+    }
+
+    private void SaveLanguagePreference()
+    {
+        PlayerPrefs.SetInt(LanguagePrefsKey, isEnglish ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    private void SetActiveLanguage()
+    {
+        english.SetActive(isEnglish);
+        spanish.SetActive(!isEnglish);
+        
+        if (isEnglish)
         {
-            english.SetActive(true);
-            spanish.SetActive(false);
-            TranslateToSpanish();
+            TranslateToEnglish();
         }
         else
         {
-            english.SetActive(false);
-            spanish.SetActive(true);
-            TranslateToEnglish();
+            TranslateToSpanish();
         }
+    }
+
+    public void language()
+    {
+        isEnglish = !isEnglish;
+        SetActiveLanguage();
+        SaveLanguagePreference();
     }
 
     public void ToggleState(GameObject obj)
@@ -43,7 +68,6 @@ public class UIToggleState : MonoBehaviour
 
     private void TranslateToSpanish()
     {
-        // Translate all Unity Text, TextMeshPro components, and Transform names to Spanish
         foreach (var pair in wordPairs)
         {
             TranslateText(pair.englishWord, pair.spanishWord);
@@ -53,7 +77,6 @@ public class UIToggleState : MonoBehaviour
 
     private void TranslateToEnglish()
     {
-        // Translate all Unity Text, TextMeshPro components, and Transform names to English
         foreach (var pair in wordPairs)
         {
             TranslateText(pair.spanishWord, pair.englishWord);
@@ -63,7 +86,6 @@ public class UIToggleState : MonoBehaviour
 
     private void TranslateText(string from, string to)
     {
-        // Translate Unity Text components
         Text[] unityTexts = Resources.FindObjectsOfTypeAll<Text>();
         foreach (var text in unityTexts)
         {
@@ -73,7 +95,6 @@ public class UIToggleState : MonoBehaviour
             }
         }
 
-        // Translate TextMeshPro components
         TextMeshProUGUI[] tmpTexts = Resources.FindObjectsOfTypeAll<TextMeshProUGUI>();
         foreach (var text in tmpTexts)
         {
@@ -91,7 +112,6 @@ public class UIToggleState : MonoBehaviour
         string fromString = fromBuilder.ToString();
         string toString = toBuilder.ToString();
 
-        // Get all root game objects in the scene
         List<GameObject> rootObjects = new List<GameObject>();
         var scenes = UnityEngine.SceneManagement.SceneManager.GetAllScenes();
         foreach (var scene in scenes)
@@ -103,7 +123,6 @@ public class UIToggleState : MonoBehaviour
             }
         }
 
-        // Traverse all root objects and their children
         foreach (var rootObject in rootObjects)
         {
             TraverseAndTranslate(rootObject.transform, fromString, toString);
