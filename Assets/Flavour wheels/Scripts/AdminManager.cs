@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Collections;
 
 public class AdminManager : MonoBehaviour
 {
@@ -15,6 +16,8 @@ public class AdminManager : MonoBehaviour
     [SerializeField] private Button generateKeyButton;
     [SerializeField] private GameObject signinPage;
     [SerializeField] private UserInputManager userInputManager;
+    [SerializeField] private TextMeshProUGUI displayText;
+    [SerializeField] private Button goToUserButton;
 
     public enum User { Admin, Player }
     public User currentUser = User.Admin;
@@ -39,6 +42,7 @@ public class AdminManager : MonoBehaviour
         SetActiveUI(currentUser == User.Admin);
         drinkCategoryDropdown.onValueChanged.AddListener(delegate { OnDrinkCategoryChanged(); });
         generateKeyButton.onClick.AddListener(GeneratePasskey);
+        goToUserButton.onClick.AddListener(GoToUser);
     }
 
     private void SetActiveUI(bool isAdmin)
@@ -47,14 +51,17 @@ public class AdminManager : MonoBehaviour
         signinPage.SetActive(!isAdmin);
         userInputManager.enabled = !isAdmin;
     }
+
     public void SetAdmin()
     {
-     currentUser=User.Admin;
+        currentUser = User.Admin;
     }
+
     public void SetPlayer()
     {
-     currentUser=User.Player;
+        currentUser = User.Player;
     }
+
     private void LoadData()
     {
         LoadPlayerPrefs("DrinkCategory", drinkCategoryDropdown, "BOURBON");
@@ -98,9 +105,31 @@ public class AdminManager : MonoBehaviour
         Debug.Log($"Generated Passkey: {passkey}");
 
         generateKeyButton.interactable = false;
+        goToUserButton.interactable = false;
         SaveData();
+
+        StartCoroutine(UpdateDisplayTextCoroutine());
+
         await SaveDataToServer();
+
         generateKeyButton.interactable = true;
+        goToUserButton.interactable = true;
+        displayText.text = "Data ready...";
+        userInputManager.StartMethod();
+        signinPage.SetActive(false);
+    }
+
+    private IEnumerator UpdateDisplayTextCoroutine()
+    {
+        string[] loadingMessages = { "Loading the server.....", "Receiving.....", "Please wait.." };
+        int messageIndex = 0;
+
+        while (!generateKeyButton.interactable)
+        {
+            displayText.text = loadingMessages[messageIndex];
+            messageIndex = (messageIndex + 1) % loadingMessages.Length;
+            yield return new WaitForSeconds(2f);
+        }
     }
 
     private string GenerateRandomString(int length)
@@ -179,6 +208,12 @@ public class AdminManager : MonoBehaviour
                 Debug.LogError($"Request error: {e.Message}");
             }
         }
+    }
+
+    private void GoToUser()
+    {
+        SetPlayer();
+        SetActiveUI(false);
     }
 
     [System.Serializable]

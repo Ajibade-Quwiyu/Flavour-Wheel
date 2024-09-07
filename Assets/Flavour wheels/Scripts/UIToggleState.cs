@@ -3,12 +3,34 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using System.Text;
+using System.Linq;
 
 [System.Serializable]
 public class WordPair
 {
     public string englishWord;
     public string spanishWord;
+}
+
+public enum FlavorCategory
+{
+    BOURBON,
+    WHISKEY,
+    RUM,
+    GIN,
+    REDWINE,
+    SPARKLING_WINE,
+    COGNAC,
+    TEQUILA,
+    BEER
+}
+
+[System.Serializable]
+public class FlavorPair
+{
+    public string englishWord;
+    public string spanishWord;
+    public FlavorCategory category;
 }
 
 public class UIToggleState : MonoBehaviour
@@ -18,6 +40,9 @@ public class UIToggleState : MonoBehaviour
     private bool isEnglish; // true for English, false for Spanish
 
     public List<WordPair> wordPairs = new List<WordPair>();
+    public List<FlavorPair> flavorPairs = new List<FlavorPair>();
+
+    [SerializeField] private FlavorCategory activeFlavorCategory;
 
     private const string LanguagePrefsKey = "SelectedLanguage";
 
@@ -43,7 +68,7 @@ public class UIToggleState : MonoBehaviour
     {
         english.SetActive(isEnglish);
         spanish.SetActive(!isEnglish);
-        
+
         if (isEnglish)
         {
             TranslateToEnglish();
@@ -66,9 +91,18 @@ public class UIToggleState : MonoBehaviour
         obj.SetActive(!obj.activeSelf);
     }
 
+    private List<FlavorPair> GetActiveFlavorPairs()
+    {
+        return flavorPairs.Where(fp => fp.category == activeFlavorCategory).ToList();
+    }
+
     private void TranslateToSpanish()
     {
         foreach (var pair in wordPairs)
+        {
+            TranslateText(pair.englishWord, pair.spanishWord);
+        }
+        foreach (var pair in GetActiveFlavorPairs())
         {
             TranslateText(pair.englishWord, pair.spanishWord);
             TranslateTransformNames(pair.englishWord, pair.spanishWord);
@@ -78,6 +112,10 @@ public class UIToggleState : MonoBehaviour
     private void TranslateToEnglish()
     {
         foreach (var pair in wordPairs)
+        {
+            TranslateText(pair.spanishWord, pair.englishWord);
+        }
+        foreach (var pair in GetActiveFlavorPairs())
         {
             TranslateText(pair.spanishWord, pair.englishWord);
             TranslateTransformNames(pair.spanishWord, pair.englishWord);
