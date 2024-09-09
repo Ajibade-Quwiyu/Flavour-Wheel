@@ -47,7 +47,7 @@ public class UserInputManager : MonoBehaviour
 
     // Managers
     public SpiritManager spiritManager;
-
+    public UIToggleState uIToggleState;
     // Constants
     private const int maxRetries = 3;
     private const float retryDelay = 2f;
@@ -417,7 +417,15 @@ public class UserInputManager : MonoBehaviour
     private void UpdateUI(AdminData data)
     {
         drinkCategoryText.text = $"{data.drinkCategory} WHEEL";
-
+        if (System.Enum.TryParse(data.drinkCategory, true, out FlavorCategory category))
+        {
+            uIToggleState.SetActiveFlavorCategory(category);
+            Debug.Log($"Switched to {category} flavor category");
+        }
+        else
+        {
+            Debug.LogError($"Invalid flavor category: {data.drinkCategory}");
+        }
         var spirits = new[] { data.spirit1, data.spirit2, data.spirit3, data.spirit4, data.spirit5 };
         var textFields = new[] { "spirit1Text", "spirit2Text", "spirit3Text", "spirit4Text", "spirit5Text" };
 

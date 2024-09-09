@@ -52,6 +52,11 @@ public class UIToggleState : MonoBehaviour
         SetActiveLanguage();
     }
 
+public void SetActiveFlavorCategory(FlavorCategory newCategory)
+    {
+        activeFlavorCategory = newCategory;
+        SetActiveLanguage();
+    }
     private void LoadLanguagePreference()
     {
         // Load the saved language preference (default to English if not set)
