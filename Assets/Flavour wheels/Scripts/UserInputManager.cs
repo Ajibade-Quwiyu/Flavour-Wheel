@@ -390,13 +390,24 @@ public class UserInputManager : MonoBehaviour
     public void Rate(int rating)
     {
         overallRating = rating;
-        Color gold = new Color(1f, 0.75f, 0f);
+        Color gold = new Color(1f, 0.84f, 0f); // Slightly adjusted gold color
 
         for (int i = 0; i < ratingButtons.Count; i++)
-            ratingButtons[i].image.color = i < rating ? gold : Color.white;
+        {
+            Image buttonImage = ratingButtons[i].image;
+            if (buttonImage != null)
+            {
+                buttonImage.color = i < rating ? gold : Color.white;
+            }
+            else
+            {
+                Debug.LogWarning($"Image component is missing on rating button {i}");
+            }
+        }
 
-        overallRatingTransform.GetChild(1).GetComponent<Text>().text = rating.ToString();
-        audioSource?.PlayOneShot(ratingSound);
+        Text ratingText = overallRatingTransform.GetChild(1).GetComponent<Text>();
+        ratingText.text = rating.ToString();
+        audioSource.PlayOneShot(ratingSound);
     }
 
     private IEnumerator GetAdminData(System.Action<AdminData> callback)
