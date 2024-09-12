@@ -15,12 +15,12 @@ public class WordPair
 public enum FlavorCategory
 {
     BOURBON,
-    WHISKEY,
+    WHISKY,
     RUM,
-    GIN,
+    COGNAC,
     REDWINE,
     SPARKLING_WINE,
-    COGNAC,
+    GIN,
     TEQUILA,
     BEER
 }

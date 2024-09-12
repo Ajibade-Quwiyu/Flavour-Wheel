@@ -182,6 +182,7 @@ public class FlavorWheelDataRecorder : MonoBehaviour
                 if (textMeshPro != null)
                 {
                     textMeshPro.text = selectedFlavors[i].imageName;
+                    textMeshPro.overflowMode = TMPro.TextOverflowModes.Ellipsis;
                 }
                 if (nameholderImage != null)
                 {
@@ -238,7 +239,11 @@ public class FlavorWheelDataRecorder : MonoBehaviour
 
         if (spiritManager != null)
         {
-            spiritManager.ReceiveSpiritData(spiritNameText?.text ?? "", selectedFlavors.Count, currentRating, (int)wheelOrder);
+            int flavorCount = selectedFlavors.Count;
+            // Ensure we send at least 1 for the flavor count
+            flavorCount = flavorCount <= 1 ? 1 : flavorCount;
+
+            spiritManager.ReceiveSpiritData(spiritNameText?.text ?? "", flavorCount, currentRating, (int)wheelOrder);
         }
     }
 
