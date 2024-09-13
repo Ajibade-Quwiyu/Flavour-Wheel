@@ -5,8 +5,8 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System;
+using UnityEngine.SceneManagement;
 
 public class UserInputManager : MonoBehaviour
 {
@@ -16,53 +16,47 @@ public class UserInputManager : MonoBehaviour
         public Text spirit1Text, spirit2Text, spirit3Text, spirit4Text, spirit5Text;
     }
 
-    // InputFields
+    // UI Elements
     public TMP_InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
     public TMP_Text myName;
-    // Transforms
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;
-
-    // Buttons
     public Button submitButton;
-
-    // GameObjects
     public GameObject signInPage, gamePanel, loadingPanel;
     private GameObject incorrectPasscodeIndicator;
-
-    // Text components
     public Text drinkCategoryText;
-    private Coroutine backgroundCheckCoroutine;
-    private const float checkInterval = 60f; 
-    // Lists
     public List<SpiritTextFieldSet> spiritTextFieldSets;
     private List<Button> ratingButtons = new List<Button>();
 
-    // Audio components
+    // Audio
     public AudioClip ratingSound;
     private AudioSource audioSource;
 
-    // Particle systems
+    // Particle Systems
     private ParticleSystem[] particles;
 
     // Managers
     public SpiritManager spiritManager;
     public UIToggleState uIToggleState;
+
     // Constants
     private const int maxRetries = 3;
     private const float retryDelay = 2f;
     public float particlesDuration = 5f;
     private const string UsernameKey = "PlayerUsername";
     private const string EmailKey = "PlayerEmail";
-    private string adminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
+    private const string adminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
+    private const float passcodeCheckInterval = 1f;
 
     // Data-related variables
     private AdminData cachedAdminData;
     private bool isDataLoaded = false, isOfflineMode = false, isDataRetrievalInProgress = false;
     private Coroutine dataRetrievalCoroutine;
+    private Coroutine continuousPasscodeCheckCoroutine;
+    private bool isGameActive = false;
 
-    // Other variables
     private int overallRating = 0;
+
     public void StartMethod()
     {
         incorrectPasscodeIndicator = submitButton.transform.GetChild(0).gameObject;
@@ -78,19 +72,9 @@ public class UserInputManager : MonoBehaviour
         signInPage.SetActive(true);
         gamePanel.SetActive(false);
 
-        for (int i = 2; i < 7; i++)
-        {
-            int rating = i - 1;
-            Button ratingButton = overallRatingTransform.GetChild(i).GetComponent<Button>();
-            ratingButton.onClick.AddListener(() => Rate(rating));
-            ratingButtons.Add(ratingButton);
-        }
+        SetupRatingButtons();
 
-        audioSource = Camera.main.GetComponent<AudioSource>();
-        if (audioSource == null)
-        {
-            audioSource = Camera.main.gameObject.AddComponent<AudioSource>();
-        }
+        audioSource = Camera.main.GetComponent<AudioSource>() ?? Camera.main.gameObject.AddComponent<AudioSource>();
 
         LoadUserData();
         SetupParticles();
@@ -98,6 +82,20 @@ public class UserInputManager : MonoBehaviour
 
         LoadCachedAdminData();
         dataRetrievalCoroutine = StartCoroutine(LoadAdminDataAtStart());
+    }
+
+    private void SetupRatingButtons()
+    {
+        Transform ratingGroup = overallRatingTransform.Find("Rating Group");
+
+        ratingButtons.Clear();
+        for (int i = 0; i < ratingGroup.childCount; i++)
+        {
+            int rating = i + 1;
+            Button ratingButton = ratingGroup.GetChild(i).GetComponent<Button>();
+            ratingButton.onClick.AddListener(() => Rate(rating));
+            ratingButtons.Add(ratingButton);
+        }
     }
 
     private void ValidateSpiritTextFieldSets()
@@ -148,15 +146,6 @@ public class UserInputManager : MonoBehaviour
         }
     }
 
-    private void SaveCachedAdminData(AdminData data)
-    {
-        if (data != null)
-        {
-            PlayerPrefs.SetString("CachedAdminData", JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
-        }
-    }
-
     private IEnumerator LoadAdminDataAtStart()
     {
         isDataRetrievalInProgress = true;
@@ -164,14 +153,22 @@ public class UserInputManager : MonoBehaviour
         isDataRetrievalInProgress = false;
     }
 
-    private void DisplayOfflineModeMessage() =>
-        DisplayConnectionError("No internet connection. Please connect to the internet to access the game.");
-
     private IEnumerator GetAdminDataWithRetry(int retryCount)
     {
         while (retryCount < maxRetries)
         {
-            yield return TryGetAdminData();
+            yield return GetAdminData(data =>
+            {
+                if (data != null)
+                {
+                    cachedAdminData = data;
+                    isDataLoaded = true;
+                    isOfflineMode = false;
+                    PlayerPrefs.SetString("CachedAdminData", JsonUtility.ToJson(data));
+                    PlayerPrefs.Save();
+                }
+            });
+
             if (isDataLoaded)
                 yield break;
 
@@ -181,20 +178,6 @@ public class UserInputManager : MonoBehaviour
         }
 
         LoadCachedAdminData();
-    }
-
-    private IEnumerator TryGetAdminData()
-    {
-        yield return GetAdminData(data =>
-        {
-            if (data != null)
-            {
-                cachedAdminData = data;
-                isDataLoaded = true;
-                isOfflineMode = false;
-                SaveCachedAdminData(data);
-            }
-        });
     }
 
     public void OnSubmitButtonClicked()
@@ -207,20 +190,20 @@ public class UserInputManager : MonoBehaviour
         else if (isDataLoaded)
             ValidatePasscode(enteredPasscodeKey);
         else
-            StartCoroutine(RetryAdminDataFetch(enteredPasscodeKey));
+            StartCoroutine(GetAdminDataWithRetry(0));
     }
 
     private IEnumerator WaitForDataRetrieval(string enteredPasscodeKey)
     {
         yield return ShowLoadingIndicator();
-        ProcessDataValidation(enteredPasscodeKey);
+        ValidatePasscode(enteredPasscodeKey);
     }
 
     private IEnumerator ShowLoadingIndicator()
     {
         incorrectPasscodeIndicator.SetActive(true);
         TMP_Text indicatorText = incorrectPasscodeIndicator.GetComponent<TMP_Text>();
-        incorrectPasscodeIndicator.GetComponent<TMP_Text>().color = Color.white;
+        indicatorText.color = Color.white;
         while (isDataRetrievalInProgress)
         {
             indicatorText.text = "Please wait.....";
@@ -231,14 +214,6 @@ public class UserInputManager : MonoBehaviour
         incorrectPasscodeIndicator.SetActive(false);
     }
 
-    private void ProcessDataValidation(string enteredPasscodeKey)
-    {
-        if (isDataLoaded)
-            ValidatePasscode(enteredPasscodeKey);
-        else
-            StartCoroutine(RetryAdminDataFetch(enteredPasscodeKey));
-    }
-
     private void ValidatePasscode(string enteredPasscodeKey)
     {
         if (cachedAdminData == null)
@@ -247,11 +222,11 @@ public class UserInputManager : MonoBehaviour
             return;
         }
         myName.text = usernameInputField.text;
-        if (cachedAdminData.passcodeKey.Trim().Equals(enteredPasscodeKey, System.StringComparison.OrdinalIgnoreCase))
+        if (cachedAdminData.passcodeKey.Trim().Equals(enteredPasscodeKey, StringComparison.OrdinalIgnoreCase))
         {
             if (isOfflineMode)
             {
-                DisplayOfflineModeMessage();
+                DisplayConnectionError("No internet connection. Please connect to the internet to access the game.");
                 signInPage.SetActive(true);
             }
             else
@@ -261,80 +236,51 @@ public class UserInputManager : MonoBehaviour
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
-                
-                // Start the background check coroutine
-                StartBackgroundCheck(enteredPasscodeKey);
+                StartGame();
             }
         }
         else
         {
-            DisplayIncorrectPasscodeMessage("The key you entered is incorrect!!");
+            DisplayConnectionError("The key you entered is incorrect!!");
         }
     }
 
-    private void StartBackgroundCheck(string initialPasscode)
+    private void StartGame()
     {
-        if (backgroundCheckCoroutine != null)
+        isGameActive = true;
+        if (continuousPasscodeCheckCoroutine != null)
         {
-            StopCoroutine(backgroundCheckCoroutine);
+            StopCoroutine(continuousPasscodeCheckCoroutine);
         }
-        backgroundCheckCoroutine = StartCoroutine(BackgroundPasscodeCheck(initialPasscode));
+        continuousPasscodeCheckCoroutine = StartCoroutine(ContinuousPasscodeCheck());
     }
 
-    private IEnumerator BackgroundPasscodeCheck(string initialPasscode)
+    private IEnumerator ContinuousPasscodeCheck()
     {
-        while (true)
+        while (isGameActive)
         {
-            yield return new WaitForSeconds(checkInterval);
-
+            yield return new WaitForSeconds(passcodeCheckInterval);
             yield return GetAdminData(newData =>
             {
-                if (newData != null && !newData.passcodeKey.Trim().Equals(initialPasscode, StringComparison.OrdinalIgnoreCase))
+                if (newData != null && !newData.passcodeKey.Trim().Equals(cachedAdminData.passcodeKey.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
-                    RestartGame();
+                    StartCoroutine(RestartGameProcess());
                 }
             });
         }
     }
 
-    private void RestartGame()
+    private IEnumerator RestartGameProcess()
     {
-        // Stop the background check
-        if (backgroundCheckCoroutine != null)
+        isGameActive = false;
+        if (continuousPasscodeCheckCoroutine != null)
         {
-            StopCoroutine(backgroundCheckCoroutine);
+            StopCoroutine(continuousPasscodeCheckCoroutine);
         }
 
-        // Reset UI and game state
-        Transform parentTransform = signInPage.transform.parent;
-        for (int i = 0; i < parentTransform.childCount; i++)
-        {
-            parentTransform.GetChild(i).gameObject.SetActive(false);
-        }
-        signInPage.SetActive(true);
-        // Clear input fields
-        passcodeKeyInputField.text = "";
-        overallExperienceInputField.text = "";
+        yield return new WaitForSeconds(.1f);
 
-        // Reset rating
-        Rate(0);
-
-        // Display message to user
-        DisplayConnectionError("The game settings have been updated. Please enter the new passcode to continue.");
-
-        // Stop any ongoing processes
-        StopAllCoroutines();
-
-        // Restart data retrieval process
-        dataRetrievalCoroutine = StartCoroutine(LoadAdminDataAtStart());
-    }
-
-    private IEnumerator RetryAdminDataFetch(string enteredPasscodeKey)
-    {
-        incorrectPasscodeIndicator.SetActive(true);
-        incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = "Retrieving data...";
-        yield return GetAdminDataWithRetry(0);
-        ProcessDataValidation(enteredPasscodeKey);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     private void DisplayConnectionError(string message)
@@ -346,14 +292,6 @@ public class UserInputManager : MonoBehaviour
         incorrectPasscodeIndicator.SetActive(true);
     }
 
-    private void DisplayIncorrectPasscodeMessage(string message)
-    {
-        incorrectPasscodeIndicator.GetComponent<TMP_Text>().text = message;
-        incorrectPasscodeIndicator.GetComponent<TMP_Text>().color = Color.red;
-        incorrectPasscodeIndicator.SetActive(true);
-        loadingPanel.SetActive(false);
-        signInPage.SetActive(true);
-    }
     private void PlayParticleEffects()
     {
         if (particles?.Length > 0)
@@ -390,24 +328,27 @@ public class UserInputManager : MonoBehaviour
     public void Rate(int rating)
     {
         overallRating = rating;
-        Color gold = new Color(1f, 0.84f, 0f); // Slightly adjusted gold color
+        Color gold = new Color(1f, 0.84f, 0f);
+        Color white = Color.white;
 
-        for (int i = 0; i < ratingButtons.Count; i++)
+        // Find the "Rating Group" child
+        Transform ratingGroup = overallRatingTransform.Find("Rating Group");
+       
+        // Update colors of button images in the Rating Group
+        for (int i = 0; i < ratingGroup.childCount; i++)
         {
-            Image buttonImage = ratingButtons[i].image;
+            Image buttonImage = ratingGroup.GetChild(i).GetComponent<Image>();
             if (buttonImage != null)
             {
-                buttonImage.color = i < rating ? gold : Color.white;
-            }
-            else
-            {
-                Debug.LogWarning($"Image component is missing on rating button {i}");
+                buttonImage.color = i < rating ? gold : white;
             }
         }
 
+        // Update the rating text
         Text ratingText = overallRatingTransform.GetChild(1).GetComponent<Text>();
         ratingText.text = rating.ToString();
         audioSource.PlayOneShot(ratingSound);
+        Handheld.Vibrate();
     }
 
     private IEnumerator GetAdminData(System.Action<AdminData> callback)
@@ -425,13 +366,13 @@ public class UserInputManager : MonoBehaviour
             callback(null);
         }
     }
+
     private void UpdateUI(AdminData data)
     {
         drinkCategoryText.text = $"{data.drinkCategory} WHEEL";
         if (System.Enum.TryParse(data.drinkCategory, true, out FlavorCategory category))
         {
             uIToggleState.SetActiveFlavorCategory(category);
-            Debug.Log($"Switched to {category} flavor category");
         }
         else
         {
@@ -476,17 +417,14 @@ public class UserInputManager : MonoBehaviour
         {
             try
             {
-                // Check if the JSON is an empty array
                 if (json == "[]")
                 {
                     Debug.LogWarning("Received an empty array from the server.");
                     return null;
                 }
 
-                // Check if the JSON is an array
                 if (json.StartsWith("[") && json.EndsWith("]"))
                 {
-                    // Wrap the array in an object
                     json = "{\"data\":" + json + "}";
                     AdminDataWrapper wrapper = JsonUtility.FromJson<AdminDataWrapper>(json);
                     if (wrapper != null && wrapper.data != null && wrapper.data.Length > 0)
@@ -501,7 +439,6 @@ public class UserInputManager : MonoBehaviour
                 }
                 else
                 {
-                    // Try parsing as a single object
                     AdminData adminData = JsonUtility.FromJson<AdminData>(json);
                     if (adminData != null && !string.IsNullOrEmpty(adminData.drinkCategory))
                     {

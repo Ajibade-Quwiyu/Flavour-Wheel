@@ -25,7 +25,7 @@ public class AdminManager : MonoBehaviour
     private const string AdminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
     private const string FlavourWheelEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel";
     private const string PasskeyPrefKey = "AdminPasskey";
-    private const int PasskeyLength = 8;
+    private const int PasskeyLength = 5;
 
     private string selectedDrinkCategory;
     private List<string> spiritNames = new List<string>();
@@ -102,7 +102,7 @@ public class AdminManager : MonoBehaviour
 
         passkey = GenerateRandomString(PasskeyLength);
         passkeyInputField.text = passkey;
-        Debug.Log($"Generated Passkey: {passkey}");
+        Debug.Log($"Generated Passkey: {passkey}"); // This passkey will now be exactly 5 characters
 
         generateKeyButton.interactable = false;
         goToUserButton.interactable = false;
@@ -175,22 +175,31 @@ public class AdminManager : MonoBehaviour
         {
             try
             {
-                // Attempt to delete all content from the flavour wheel server
-                var deleteResponse = await client.DeleteAsync(FlavourWheelEndpoint);
-                if (deleteResponse.IsSuccessStatusCode)
+                // Delete all content from the flavour wheel server
+                var deleteFlavorWheelResponse = await client.DeleteAsync(FlavourWheelEndpoint);
+                if (deleteFlavorWheelResponse.IsSuccessStatusCode)
                 {
-                    Debug.Log($"Flavour wheel server delete response: {deleteResponse.StatusCode}");
+                    Debug.Log($"Flavour wheel server delete response: {deleteFlavorWheelResponse.StatusCode}");
                 }
                 else
                 {
-                    Debug.LogWarning($"Failed to delete flavour wheel data. Status: {deleteResponse.StatusCode}");
-                    string errorContent = await deleteResponse.Content.ReadAsStringAsync();
+                    Debug.LogWarning($"Failed to delete flavour wheel data. Status: {deleteFlavorWheelResponse.StatusCode}");
+                    string errorContent = await deleteFlavorWheelResponse.Content.ReadAsStringAsync();
                     Debug.LogWarning($"Error content: {errorContent}");
                 }
 
-                // Delete existing admin data
-                var adminDeleteResponse = await client.DeleteAsync(AdminEndpoint);
-                Debug.Log($"Admin server delete response: {adminDeleteResponse.StatusCode}");
+                // Delete all existing admin data
+                var deleteAdminResponse = await client.DeleteAsync(AdminEndpoint);
+                if (deleteAdminResponse.IsSuccessStatusCode)
+                {
+                    Debug.Log($"Admin server delete response: {deleteAdminResponse.StatusCode}");
+                }
+                else
+                {
+                    Debug.LogWarning($"Failed to delete admin data. Status: {deleteAdminResponse.StatusCode}");
+                    string errorContent = await deleteAdminResponse.Content.ReadAsStringAsync();
+                    Debug.LogWarning($"Error content: {errorContent}");
+                }
 
                 // Post new admin data
                 var content = new StringContent(jsonData, Encoding.UTF8, "application/json");

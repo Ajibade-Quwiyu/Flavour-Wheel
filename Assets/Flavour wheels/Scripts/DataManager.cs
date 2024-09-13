@@ -130,14 +130,12 @@ public class DataManager : MonoBehaviour
 
     public void ClearSpiritData()
     {
-        Debug.Log("Clearing spirit data");
         orderedSpiritNames.Clear();
         orderedSpiritData.Clear();
     }
 
     public void AddSpiritData(string name, int selectedFlavors, int rating)
     {
-        Debug.Log($"Adding spirit data: Name={name}, Flavors={selectedFlavors}, Rating={rating}");
         if (!orderedSpiritNames.Contains(name))
         {
             orderedSpiritNames.Add(name);
