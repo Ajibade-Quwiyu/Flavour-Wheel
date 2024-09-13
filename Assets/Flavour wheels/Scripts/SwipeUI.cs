@@ -15,60 +15,17 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     [System.Serializable] public class LastImageSwipedEvent : UnityEvent { }
     [SerializeField] public LastImageSwipedEvent onLastImageSwiped;
     private RectTransform canvasRectTransform;
-    private ZoomAndPan[] zoomAndPanComponents;
 
     private void Start()
     {
         canvasRectTransform = GetComponentInParent<Canvas>().GetComponent<RectTransform>();
         EnsureCanvasGroupComponents();
-        FindZoomAndPanComponents();
         UpdatePanelPositions();
         UpdatePointerGraphics();
         UpdateIndicatorDots();
-        UpdateZoomAndPanComponents();
+        UpdateZoomTargetTag();
     }
-    private void FindZoomAndPanComponents()
-    {
-        zoomAndPanComponents = new ZoomAndPan[mainPanels.Length];
-        for (int i = 0; i < mainPanels.Length; i++)
-        {
-            zoomAndPanComponents[i] = mainPanels[i].GetComponentInChildren<ZoomAndPan>(true);
 
-            if (zoomAndPanComponents[i] == null)
-            {
-                Debug.LogWarning($"No ZoomAndPan component found for mainPanel {i}");
-            }
-        }
-    }
-    private void UpdateZoomAndPanComponents()
-    {
-        for (int i = 0; i < mainPanels.Length; i++)
-        {
-            if (zoomAndPanComponents[i] != null)
-            {
-                if (i == currentMainPanelIndex)
-                {
-                    // Enable the ZoomAndPan component for the current panel
-                    zoomAndPanComponents[i].enabled = true;
-                }
-                else
-                {
-                    // Disable and reset the ZoomAndPan component for other panels
-                    zoomAndPanComponents[i].Reset();
-                }
-
-                // If the main panel (parent) is inactive, ensure ZoomAndPan is reset
-                if (!mainPanels[i].gameObject.activeSelf)
-                {
-                    zoomAndPanComponents[i].Reset();
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"ZoomAndPan component is null for panel {i}");
-            }
-        }
-    }
     public void OnDrag(PointerEventData eventData)
     {
         if (!isSwiping && eventData.pressPosition.y <= Screen.height / 4)
@@ -173,7 +130,7 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         currentMainPanelIndex = currentPointerIndex;
         UpdatePanelPositions();
-        UpdateZoomAndPanComponents();
+        UpdateZoomTargetTag();
     }
 
     private void ResetPointerPositions()
@@ -200,5 +157,24 @@ public class SwipeUI : MonoBehaviour, IDragHandler, IEndDragHandler
             yield return null;
         }
         panel.anchoredPosition = targetPosition;
+    }
+
+    private void UpdateZoomTargetTag()
+    {
+        for (int i = 0; i < mainPanels.Length; i++)
+        {
+            ZoomAndPan zoomAndPan = mainPanels[i].GetComponentInChildren<ZoomAndPan>();
+            if (zoomAndPan != null)
+            {
+                if (i == currentMainPanelIndex)
+                {
+                    zoomAndPan.gameObject.tag = "ZoomTarget";
+                }
+                else
+                {
+                    zoomAndPan.gameObject.tag = "Untagged";
+                }
+            }
+        }
     }
 }
