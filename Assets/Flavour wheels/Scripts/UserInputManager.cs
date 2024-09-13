@@ -408,6 +408,7 @@ public class UserInputManager : MonoBehaviour
         Text ratingText = overallRatingTransform.GetChild(1).GetComponent<Text>();
         ratingText.text = rating.ToString();
         audioSource.PlayOneShot(ratingSound);
+        Handheld.Vibrate();
     }
 
     private IEnumerator GetAdminData(System.Action<AdminData> callback)

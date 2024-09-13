@@ -17,8 +17,11 @@ public class ZoomAndPan : MonoBehaviour, IPointerDownHandler, IDragHandler
 
    // Specify the tag or name to identify the specific instance
    public string targetTag = "ZoomTarget";
-
-   void Start()
+    void Awake()
+    {
+        InitializeComponent();
+    }
+    void Start()
    {
        imageRect = this.GetComponent<RectTransform>();
 
@@ -57,8 +60,24 @@ public class ZoomAndPan : MonoBehaviour, IPointerDownHandler, IDragHandler
            Zoom(scroll * zoomSpeed * 100f);
        }
    }
-
-   public void OnPointerDown(PointerEventData eventData)
+    private void InitializeComponent()
+    {
+        if (imageRect == null)
+        {
+            imageRect = this.GetComponent<RectTransform>();
+            if (imageRect != null)
+            {
+                // Save the original size and position of the image
+                originalSize = imageRect.sizeDelta;
+                originalPosition = imageRect.anchoredPosition;
+            }
+            else
+            {
+                Debug.LogError("ZoomAndPan: Unable to find RectTransform component.");
+            }
+        }
+    }
+    public void OnPointerDown(PointerEventData eventData)
    {
        if (!this.gameObject.CompareTag(targetTag)) return;
        lastMousePosition = Input.mousePosition;
@@ -138,4 +157,27 @@ public class ZoomAndPan : MonoBehaviour, IPointerDownHandler, IDragHandler
 
        imageRect.anchoredPosition = position;
    }
+    public void Reset()
+    {
+        InitializeComponent();  // Ensure component is initialized
+
+        if (imageRect != null)
+        {
+            // Reset scale
+            imageRect.localScale = Vector3.one;
+
+            // Reset position
+            imageRect.anchoredPosition = originalPosition;
+
+            // Reset size
+            imageRect.sizeDelta = originalSize;
+        }
+        else
+        {
+            Debug.LogWarning("ZoomAndPan: Unable to reset, RectTransform is null.");
+        }
+
+        // Ensure the component is disabled
+        this.enabled = false;
+    }
 }
