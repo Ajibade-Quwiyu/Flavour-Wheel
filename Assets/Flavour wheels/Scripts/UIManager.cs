@@ -50,7 +50,14 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < values.Length; i++)
             SetCellData(row.transform.GetChild(2 + i), values[i], isFlavourTable);
 
+        // Ensure the overall rating is set correctly
         SetStarRating(row.transform.GetChild(7), player.overallRating);
+    }
+
+    private void SetStarRating(Transform starRating, int rating)
+    {
+        for (int i = 0; i < starRating.childCount && i < 5; i++)
+            starRating.GetChild(i).gameObject.SetActive(i < rating);
     }
 
     private void SetCellData(Transform cellTransform, int value, bool isFlavourTable)
@@ -244,12 +251,6 @@ public class UIManager : MonoBehaviour
     {
         flavourTransform.GetComponent<Image>().color = GetFlavorColor(flavour);
         SetText(flavourTransform.GetChild(0), flavour.ToString());
-    }
-
-    private void SetStarRating(Transform starRating, int rating)
-    {
-        for (int i = 0; i < starRating.childCount && i < 5; i++)
-            starRating.GetChild(i).gameObject.SetActive(i < rating);
     }
 
     private string GetRankString(int rank) =>

@@ -158,7 +158,7 @@ public class FlavorWheelController : MonoBehaviour
             DisplayMaxSelectionsReached();
         }
         PlayDoubleClickSound();
-        Handheld.Vibrate();
+       // Handheld.Vibrate();
     }
     // Image state management methods
     private void ToggleImageState(Image image)

@@ -2,8 +2,6 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections;
@@ -25,14 +23,17 @@ public class AdminManager : MonoBehaviour
     private const string AdminEndpoint = "https://flavour-wheel-server.onrender.com/api/adminserver";
     private const string FlavourWheelEndpoint = "https://flavour-wheel-server.onrender.com/api/flavourwheel";
     private const string PasskeyPrefKey = "AdminPasskey";
-    private const int PasskeyLength = 5;
+    private const int PasskeyLength = 4;
 
     private string selectedDrinkCategory;
     private List<string> spiritNames = new List<string>();
     private string passkey;
 
+    private WebGLHttpClient httpClient;
+
     private void Start()
     {
+        httpClient = gameObject.AddComponent<WebGLHttpClient>();
         InitializeUI();
         LoadData();
     }
@@ -96,13 +97,11 @@ public class AdminManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(selectedDrinkCategory) || spiritNames.Any(string.IsNullOrEmpty))
         {
-            Debug.LogError("Please fill in all fields before generating a passkey.");
             return;
         }
 
-        passkey = GenerateRandomString(PasskeyLength);
+        passkey = GenerateRandomNumericString(PasskeyLength);
         passkeyInputField.text = passkey;
-        Debug.Log($"Generated Passkey: {passkey}"); // This passkey will now be exactly 5 characters
 
         generateKeyButton.interactable = false;
         goToUserButton.interactable = false;
@@ -112,11 +111,19 @@ public class AdminManager : MonoBehaviour
 
         await SaveDataToServer();
 
+        // Update UI on the main thread
         generateKeyButton.interactable = true;
         goToUserButton.interactable = true;
         displayText.text = "Data ready...";
         userInputManager.StartMethod();
         signinPage.SetActive(false);
+    }
+
+    private string GenerateRandomNumericString(int length)
+    {
+        const string digits = "0123456789";
+        return new string(Enumerable.Repeat(digits, length)
+            .Select(s => s[UnityEngine.Random.Range(0, s.Length)]).ToArray());
     }
 
     private IEnumerator UpdateDisplayTextCoroutine()
@@ -130,13 +137,6 @@ public class AdminManager : MonoBehaviour
             messageIndex = (messageIndex + 1) % loadingMessages.Length;
             yield return new WaitForSeconds(2f);
         }
-    }
-
-    private string GenerateRandomString(int length)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[UnityEngine.Random.Range(0, s.Length)]).ToArray());
     }
 
     private void SaveData()
@@ -169,54 +169,40 @@ public class AdminManager : MonoBehaviour
         };
 
         string jsonData = JsonUtility.ToJson(data);
-        Debug.Log($"Sending data to server: {jsonData}");
 
-        using (HttpClient client = new HttpClient())
+        try
         {
-            try
+            // Delete all content from the flavour wheel server
+            string deleteFlavorWheelResponse = await DeleteAsyncWrapper(FlavourWheelEndpoint);
+
+            // Delete all existing admin data
+            string deleteAdminResponse = await DeleteAsyncWrapper(AdminEndpoint);
+
+            // Post new admin data
+            string postResponse = await PostAsyncWrapper(AdminEndpoint, jsonData);
+            if (string.IsNullOrEmpty(postResponse))
             {
-                // Delete all content from the flavour wheel server
-                var deleteFlavorWheelResponse = await client.DeleteAsync(FlavourWheelEndpoint);
-                if (deleteFlavorWheelResponse.IsSuccessStatusCode)
-                {
-                    Debug.Log($"Flavour wheel server delete response: {deleteFlavorWheelResponse.StatusCode}");
-                }
-                else
-                {
-                    Debug.LogWarning($"Failed to delete flavour wheel data. Status: {deleteFlavorWheelResponse.StatusCode}");
-                    string errorContent = await deleteFlavorWheelResponse.Content.ReadAsStringAsync();
-                    Debug.LogWarning($"Error content: {errorContent}");
-                }
-
-                // Delete all existing admin data
-                var deleteAdminResponse = await client.DeleteAsync(AdminEndpoint);
-                if (deleteAdminResponse.IsSuccessStatusCode)
-                {
-                    Debug.Log($"Admin server delete response: {deleteAdminResponse.StatusCode}");
-                }
-                else
-                {
-                    Debug.LogWarning($"Failed to delete admin data. Status: {deleteAdminResponse.StatusCode}");
-                    string errorContent = await deleteAdminResponse.Content.ReadAsStringAsync();
-                    Debug.LogWarning($"Error content: {errorContent}");
-                }
-
-                // Post new admin data
-                var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-                var postResponse = await client.PostAsync(AdminEndpoint, content);
-                Debug.Log($"Admin server post response: {postResponse.StatusCode}");
-
-                if (!postResponse.IsSuccessStatusCode)
-                {
-                    string errorContent = await postResponse.Content.ReadAsStringAsync();
-                    Debug.LogError($"Failed to update admin server. Status: {postResponse.StatusCode}, Content: {errorContent}");
-                }
-            }
-            catch (HttpRequestException e)
-            {
-                Debug.LogError($"Request error: {e.Message}");
+                Debug.LogError("Failed to update admin server.");
             }
         }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"SaveDataToServer Exception: {e.Message}\nStack Trace: {e.StackTrace}");
+        }
+    }
+
+    private Task<string> DeleteAsyncWrapper(string url)
+    {
+        var tcs = new TaskCompletionSource<string>();
+        StartCoroutine(httpClient.DeleteAsync(url, result => tcs.SetResult(result)));
+        return tcs.Task;
+    }
+
+    private Task<string> PostAsyncWrapper(string url, string jsonData)
+    {
+        var tcs = new TaskCompletionSource<string>();
+        StartCoroutine(httpClient.PostAsync(url, jsonData, result => tcs.SetResult(result)));
+        return tcs.Task;
     }
 
     private void GoToUser()

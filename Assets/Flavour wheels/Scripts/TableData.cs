@@ -18,6 +18,7 @@ public class TableData : MonoBehaviour
     private bool isAActive = true;
     private bool isTransitioning = false;
     private float screenWidth;
+    private Coroutine transitionCoroutine = null;
 
     private void Start()
     {
@@ -88,10 +89,17 @@ public class TableData : MonoBehaviour
 
     private void OnTransitionButtonClick()
     {
-        if (!isTransitioning)
+        if (isTransitioning)
         {
-            StartCoroutine(TransitionScrollRects());
+            // Stop the current transition if it's still running
+            if (transitionCoroutine != null)
+            {
+                StopCoroutine(transitionCoroutine);
+            }
         }
+
+        // Start a new transition
+        transitionCoroutine = StartCoroutine(TransitionScrollRects());
     }
 
     private IEnumerator TransitionScrollRects()
@@ -130,5 +138,6 @@ public class TableData : MonoBehaviour
 
         isAActive = !isAActive;
         isTransitioning = false;
+        transitionCoroutine = null; // Clear the coroutine reference when done
     }
 }

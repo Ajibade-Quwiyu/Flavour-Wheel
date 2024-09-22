@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,8 +56,12 @@ public class UserInputManager : MonoBehaviour
 
     private int overallRating = 0;
 
+    private WebGLHttpClient httpClient;
+
     public void StartMethod()
     {
+        httpClient = gameObject.AddComponent<WebGLHttpClient>();
+
         incorrectPasscodeIndicator = submitButton.transform.GetChild(0).gameObject;
 
         usernameInputField.onValueChanged.AddListener(delegate { CheckSubmitButtonInteractivity(); });
@@ -248,38 +251,27 @@ public class UserInputManager : MonoBehaviour
     private void StartGame()
     {
         isGameActive = true;
-        if (continuousPasscodeCheckCoroutine != null)
-        {
-            StopCoroutine(continuousPasscodeCheckCoroutine);
-        }
-        continuousPasscodeCheckCoroutine = StartCoroutine(ContinuousPasscodeCheck());
     }
 
-    private IEnumerator ContinuousPasscodeCheck()
+    public IEnumerator VerifyPasscode(System.Action<bool> callback)
     {
-        while (isGameActive)
+        yield return GetAdminData(adminData =>
         {
-            yield return new WaitForSeconds(passcodeCheckInterval);
-            yield return GetAdminData(newData =>
+            if (adminData != null)
             {
-                if (newData != null && !newData.passcodeKey.Trim().Equals(cachedAdminData.passcodeKey.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    StartCoroutine(RestartGameProcess());
-                }
-            });
-        }
+                bool isValid = adminData.passcodeKey.Trim().Equals(passcodeKeyInputField.text.Trim(), StringComparison.OrdinalIgnoreCase);
+                callback(isValid);
+            }
+            else
+            {
+                Debug.LogError("Failed to retrieve admin data for passcode verification");
+                callback(false);
+            }
+        });
     }
 
-    private IEnumerator RestartGameProcess()
+    public void RestartGame()
     {
-        isGameActive = false;
-        if (continuousPasscodeCheckCoroutine != null)
-        {
-            StopCoroutine(continuousPasscodeCheckCoroutine);
-        }
-
-        yield return new WaitForSeconds(.1f);
-
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
@@ -333,7 +325,7 @@ public class UserInputManager : MonoBehaviour
 
         // Find the "Rating Group" child
         Transform ratingGroup = overallRatingTransform.Find("Rating Group");
-       
+
         // Update colors of button images in the Rating Group
         for (int i = 0; i < ratingGroup.childCount; i++)
         {
@@ -348,17 +340,16 @@ public class UserInputManager : MonoBehaviour
         Text ratingText = overallRatingTransform.GetChild(1).GetComponent<Text>();
         ratingText.text = rating.ToString();
         audioSource.PlayOneShot(ratingSound);
-        Handheld.Vibrate();
     }
 
     private IEnumerator GetAdminData(System.Action<AdminData> callback)
     {
-        using UnityWebRequest request = UnityWebRequest.Get(adminEndpoint);
-        yield return request.SendWebRequest();
+        string response = null;
+        yield return httpClient.GetAsync(adminEndpoint, result => response = result);
 
-        if (request.result == UnityWebRequest.Result.Success)
+        if (!string.IsNullOrEmpty(response))
         {
-            AdminData adminData = AdminData.ParseJson(request.downloadHandler.text);
+            AdminData adminData = AdminData.ParseJson(response);
             callback(adminData?.drinkCategory != null ? adminData : null);
         }
         else
@@ -373,10 +364,6 @@ public class UserInputManager : MonoBehaviour
         if (System.Enum.TryParse(data.drinkCategory, true, out FlavorCategory category))
         {
             uIToggleState.SetActiveFlavorCategory(category);
-        }
-        else
-        {
-            Debug.LogError($"Invalid flavor category: {data.drinkCategory}");
         }
         var spirits = new[] { data.spirit1, data.spirit2, data.spirit3, data.spirit4, data.spirit5 };
         var textFields = new[] { "spirit1Text", "spirit2Text", "spirit3Text", "spirit4Text", "spirit5Text" };
@@ -419,7 +406,6 @@ public class UserInputManager : MonoBehaviour
             {
                 if (json == "[]")
                 {
-                    Debug.LogWarning("Received an empty array from the server.");
                     return null;
                 }
 
@@ -433,7 +419,6 @@ public class UserInputManager : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogWarning("Parsed array is empty or null.");
                         return null;
                     }
                 }
@@ -446,7 +431,6 @@ public class UserInputManager : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogWarning("Parsed object is null or invalid.");
                         return null;
                     }
                 }
