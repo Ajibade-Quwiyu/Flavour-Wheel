@@ -7,15 +7,20 @@ using System;
 
 public class UIManager : MonoBehaviour
 {
-    public Transform localTopThree, generalTopThree, FlavourTable1_Flavour, FlavourTable1_Rating, FlavourTable2;
-    public GameObject flavourRowPrefab;
+    public Transform localTopThree, generalTopThree, FlavourTable1_Flavour, FlavourTable1_Rating, FlavourTable2, summaryTable;
+    public GameObject flavourRowPrefab, summaryPrefab;
     private Dictionary<string, int> spiritRanks = new Dictionary<string, int>();
     private Dictionary<string, int> localFlavors = new Dictionary<string, int>();
     private Dictionary<string, float> localCalculatedValues = new Dictionary<string, float>();
-
+    public void UpdateAllTables(List<DataManager.PlayerData> players)
+    {
+        UpdateFlavourTable(players);
+        UpdateSummaryTable(players);
+    }
     public void UpdateFlavourTable(List<DataManager.PlayerData> players)
     {
-        ClearFlavourTables();
+        ClearTable(FlavourTable1_Flavour);
+        ClearTable(FlavourTable1_Rating);
         int maxRowsToShow = Mathf.Min(players.Count, 10);
         for (int i = 0; i < maxRowsToShow; i++)
         {
@@ -23,13 +28,84 @@ public class UIManager : MonoBehaviour
             CreateFlavourTableRow(FlavourTable1_Rating, i, players[i], false);
         }
     }
-
-    private void ClearFlavourTables()
+    public void UpdateSummaryTable(List<DataManager.PlayerData> players)
     {
-        foreach (Transform child in FlavourTable1_Flavour)
+        ClearTable(summaryTable);
+        int maxRowsToShow = Mathf.Min(players.Count, 10);
+        for (int i = 0; i < maxRowsToShow; i++)
+        {
+            CreateSummaryTableRow(summaryTable, i, players[i]);
+        }
+    }
+
+    private void ClearTable(Transform table)
+    {
+        foreach (Transform child in table)
             Destroy(child.gameObject);
-        foreach (Transform child in FlavourTable1_Rating)
-            Destroy(child.gameObject);
+    }
+
+    private void CreateSummaryTableRow(Transform parent, int rowIndex, DataManager.PlayerData player)
+    {
+        var row = Instantiate(summaryPrefab, parent);
+        if (row != null) SetSummaryRowData(row, rowIndex, player);
+    }
+
+    private void SetSummaryRowData(GameObject row, int rowIndex, DataManager.PlayerData player)
+    {
+        // Set id, username, email, spirit names as before
+        SetText(row.transform.GetChild(0), (rowIndex + 1).ToString());
+        SetText(row.transform.GetChild(1), player.username);
+        SetText(row.transform.GetChild(2), player.email);
+        SetText(row.transform.GetChild(3), player.spirit1Name);
+        SetText(row.transform.GetChild(4), player.spirit2Name);
+        SetText(row.transform.GetChild(5), player.spirit3Name);
+        SetText(row.transform.GetChild(6), player.spirit4Name);
+        SetText(row.transform.GetChild(7), player.spirit5Name);
+
+        // Set spirit flavours with colored backgrounds
+        SetColoredCell(row.transform.GetChild(8), player.spirit1Flavours, true);
+        SetColoredCell(row.transform.GetChild(9), player.spirit2Flavours, true);
+        SetColoredCell(row.transform.GetChild(10), player.spirit3Flavours, true);
+        SetColoredCell(row.transform.GetChild(11), player.spirit4Flavours, true);
+        SetColoredCell(row.transform.GetChild(12), player.spirit5Flavours, true);
+
+        // Set spirit ratings with colored backgrounds
+        SetColoredCell(row.transform.GetChild(13), player.spirit1Ratings, false);
+        SetColoredCell(row.transform.GetChild(14), player.spirit2Ratings, false);
+        SetColoredCell(row.transform.GetChild(15), player.spirit3Ratings, false);
+        SetColoredCell(row.transform.GetChild(16), player.spirit4Ratings, false);
+        SetColoredCell(row.transform.GetChild(17), player.spirit5Ratings, false);
+
+        // Set feedback
+        SetText(row.transform.GetChild(18), player.feedback);
+
+        // Set overall rating
+        SetOverallRating(row.transform.GetChild(19), player.overallRating);
+    }
+
+    private void SetColoredCell(Transform cellTransform, int value, bool isFlavour)
+    {
+        // Set the background color of the Image (which is the direct child)
+        Image backgroundImage = cellTransform.GetComponent<Image>();
+        if (backgroundImage != null)
+        {
+            backgroundImage.color = GetCellColor(value, isFlavour);
+        }
+
+        // Set the text of the TMP_Text (which is the child of the Image)
+        TMP_Text tmpText = cellTransform.GetComponentInChildren<TMP_Text>();
+        if (tmpText != null)
+        {
+            tmpText.text = value.ToString();
+        }
+    }
+
+    private void SetOverallRating(Transform ratingTransform, int rating)
+    {
+        for (int i = 0; i < ratingTransform.childCount; i++)
+        {
+            ratingTransform.GetChild(i).gameObject.SetActive(i < rating);
+        }
     }
 
     private void CreateFlavourTableRow(Transform parent, int rowIndex, DataManager.PlayerData player, bool isFlavourTable)
@@ -66,9 +142,9 @@ public class UIManager : MonoBehaviour
         SetText(cellTransform.GetChild(0), value.ToString());
     }
 
-    private Color GetCellColor(int value, bool isFlavourTable)
+    private Color GetCellColor(int value, bool isFlavour)
     {
-        float normalizedValue = isFlavourTable ? Mathf.Clamp01(value / 7f) : Mathf.Clamp01(value / 5f);
+        float normalizedValue = isFlavour ? Mathf.Clamp01(value / 7f) : Mathf.Clamp01(value / 5f);
         return Color.Lerp(Color.yellow, Color.green, normalizedValue);
     }
 
@@ -97,7 +173,6 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < multipliedValues.Length; i++)
             SetText(ranksTransform.GetChild(i), GetRankString(Array.IndexOf(sortedIndices, i) + 1));
     }
-
 
     public void UpdateFlavourTable2(Dictionary<string, DataManager.SpiritInfo> spiritData, float[] averageRatings, float[] averageFlavours)
     {
@@ -218,39 +293,32 @@ public class UIManager : MonoBehaviour
     private float GetFloatFromChild(Transform parent, int index) =>
         float.TryParse(parent.GetChild(index).GetComponent<TMP_Text>().text, out float result) ? result : 0f;
 
-    public void HideFetchingPlaceholders() => ClearFlavourTables();
-
-    private void SetRowData(GameObject row, int rowIndex, DataManager.PlayerData player)
+    public void HideFetchingPlaceholders()
     {
-        SetText(row.transform.GetChild(0), (rowIndex + 1).ToString());
-        SetText(row.transform.GetChild(1), player.username);
-
-        int[] flavours = { player.spirit1Flavours, player.spirit2Flavours, player.spirit3Flavours, player.spirit4Flavours, player.spirit5Flavours };
-        for (int i = 0; i < flavours.Length; i++)
-            SetFlavourData(row.transform.GetChild(2 + i), flavours[i]);
-
-        SetStarRating(row.transform.GetChild(7), player.overallRating);
+        ClearTable(FlavourTable1_Flavour);
+        ClearTable(FlavourTable1_Rating);
+        ClearTable(summaryTable);
     }
 
-    private void SetText(Transform transform, string text)
+    private void SetText(Transform textTransform, string text)
     {
-        var tmpText = transform.GetComponent<TMP_Text>();
+        var tmpText = textTransform.GetComponent<TMP_Text>();
         if (tmpText != null)
             tmpText.text = text;
         else
-            transform.GetComponent<Text>().text = text;
+        {
+            var legacyText = textTransform.GetComponent<Text>();
+            if (legacyText != null)
+                legacyText.text = text;
+            else
+                Debug.LogError("No text component found on " + textTransform.name);
+        }
     }
 
     private string GetText(Transform transform)
     {
         var tmpText = transform.GetComponent<TMP_Text>();
         return tmpText != null ? tmpText.text : transform.GetComponent<Text>().text;
-    }
-
-    private void SetFlavourData(Transform flavourTransform, int flavour)
-    {
-        flavourTransform.GetComponent<Image>().color = GetFlavorColor(flavour);
-        SetText(flavourTransform.GetChild(0), flavour.ToString());
     }
 
     private string GetRankString(int rank) =>
@@ -261,9 +329,6 @@ public class UIManager : MonoBehaviour
             3 => "3rd",
             _ => rank + "th"
         };
-
-    private Color GetFlavorColor(int flavor) =>
-        Color.Lerp(Color.yellow, Color.green, Mathf.Clamp01(flavor / 7f));
 
     public void UpdateTopThreeSpirits()
     {

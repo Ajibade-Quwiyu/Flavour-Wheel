@@ -14,9 +14,9 @@ public class SpiritManager : MonoBehaviour
 
     private const string PlayerUsernameKey = "PlayerUsername", EmailKey = "Email";
     private const float UpdateInterval = 5f;
-    public GameObject loadingPanel, overallRatingPanel, resultPanel;
+    public GameObject loadingPanel, overallRatingPanel, resultPanel, summaryPanel;
     private Coroutine repeatUpdateCoroutine;
-    private bool isFirstLoadComplete, isReturningToOverallRating, isInitialSubmission = true;
+    private bool isFirstLoadComplete, isReturningToOverallRating, isInitialSubmission = true, isSummaryMode=false;
     private SortedDictionary<int, (string Name, int SelectedFlavors, int Rating)> orderedSpiritData = new SortedDictionary<int, (string, int, int)>();
 
     private void Awake()
@@ -63,7 +63,15 @@ public class SpiritManager : MonoBehaviour
 
         if (isDataProcessedSuccessfully && !isReturningToOverallRating)
         {
-            resultPanel.SetActive(true);
+            if (isSummaryMode)
+            {
+                summaryPanel.SetActive(true);
+            }
+            else
+            {
+                resultPanel.SetActive(true);
+            }
+
             if (!isFirstLoadComplete)
             {
                 isFirstLoadComplete = true;
@@ -78,14 +86,46 @@ public class SpiritManager : MonoBehaviour
 
     private IEnumerator RepeatUpdateProcess()
     {
-        while (resultPanel.activeSelf && !isReturningToOverallRating)
+        while ((resultPanel.activeSelf || summaryPanel.activeSelf) && !isReturningToOverallRating)
         {
             yield return new WaitForSeconds(UpdateInterval);
-            if (resultPanel.activeSelf && !isReturningToOverallRating)
+            if ((resultPanel.activeSelf || summaryPanel.activeSelf) && !isReturningToOverallRating)
             {
                 yield return VerifyPasscodeAndUpdate();
             }
         }
+    }
+
+    public void ToggleSummaryMode(bool enableSummary)
+    {
+        isSummaryMode = enableSummary;
+        if (isFirstLoadComplete)
+        {
+            DisableAllPanels();
+            if (isSummaryMode)
+            {
+                summaryPanel.SetActive(true);
+            }
+            else
+            {
+                resultPanel.SetActive(true);
+            }
+        }
+    }
+
+    public void ReturnToOverallRating()
+    {
+        isReturningToOverallRating = true;
+        isSummaryMode = false; // Reset summary mode
+        StopAllCoroutines();
+        StopRepeatUpdateProcess();
+
+        DisableAllPanels();
+        overallRatingPanel.SetActive(true);
+
+        StartCoroutine(DeletePlayerData());
+        ResetSubmissionState();
+        StartCoroutine(ResetReturnFlag());
     }
 
     private IEnumerator VerifyPasscodeAndUpdate()
@@ -140,20 +180,6 @@ public class SpiritManager : MonoBehaviour
         }
     }
 
-    public void ReturnToOverallRating()
-    {
-        isReturningToOverallRating = true;
-        StopAllCoroutines();
-        StopRepeatUpdateProcess();
-
-        DisableAllPanels();
-        overallRatingPanel.SetActive(true);
-
-        StartCoroutine(DeletePlayerData());
-        ResetSubmissionState();
-        StartCoroutine(ResetReturnFlag());
-    }
-
     private IEnumerator DeletePlayerData()
     {
         int userId = PlayerPrefs.GetInt("UserId", 0);
@@ -181,6 +207,7 @@ public class SpiritManager : MonoBehaviour
         loadingPanel.SetActive(false);
         overallRatingPanel.SetActive(false);
         resultPanel.SetActive(false);
+        summaryPanel.SetActive(false); 
     }
 
     public void StopRepeatUpdateProcess()
@@ -202,7 +229,10 @@ public class SpiritManager : MonoBehaviour
 
         string username = PlayerPrefs.GetString(PlayerUsernameKey, "");
         dataManager.UpdateSpiritNamesListFromServer(updatedPlayerDataList.items, username);
-        uiManager.UpdateFlavourTable(updatedPlayerDataList.items);
+
+        // Replace the UpdateFlavourTable call with UpdateAllTables
+        uiManager.UpdateAllTables(updatedPlayerDataList.items);
+
         var currentPlayer = dataManager.FindPlayerByUsername(updatedPlayerDataList, username);
         if (currentPlayer == null)
         {
@@ -264,13 +294,37 @@ public class SpiritManager : MonoBehaviour
         isFirstLoadComplete = false;
         isInitialSubmission = true;
     }
-
     private IEnumerator ResetReturnFlag()
     {
         yield return new WaitForSeconds(0.5f);
         isReturningToOverallRating = false;
     }
+    private void OnApplicationQuit()
+    {
+        StartCoroutine(DeletePlayerDataOnQuit());
+    }
 
+    private IEnumerator DeletePlayerDataOnQuit()
+    {
+        int userId = PlayerPrefs.GetInt("UserId", 0);
+        if (userId != 0)
+        {
+            bool deleteComplete = false;
+            yield return dataManager.DeletePlayer(userId, () => {
+                Debug.Log("Player data deleted successfully on quit");
+                deleteComplete = true;
+            }, (error) => {
+                Debug.LogError($"Error deleting player data on quit: {error}");
+                deleteComplete = true;
+            });
+
+            // Wait for the deletion to complete before quitting
+            while (!deleteComplete)
+            {
+                yield return null;
+            }
+        }
+    }
     private void OnDisable()
     {
         StopAllCoroutines();

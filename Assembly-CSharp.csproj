@@ -69,14 +69,16 @@
     <Compile Include="Assets\Flavour wheels\Scripts\AnchorGameObject.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\WebGLHttpClient.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelDataRecorder.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\TableArrangement.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\RotationAndZoomController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UserInputManager.cs" />
+    <Compile Include="Assets\Flavour wheels\Scene\NewBehaviourScript.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\ScrollRectTransition.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SwipeUI.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\ZoomAndPan.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\DataManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SpiritManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\CrossPlatformKeyboardInput.cs" />
-    <Compile Include="Assets\Flavour wheels\Scripts\TableData.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\IntroManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelController.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\RadarChart.cs" />
