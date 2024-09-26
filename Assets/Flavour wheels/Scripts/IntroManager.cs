@@ -3,11 +3,16 @@ using UnityEngine.Video;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.Networking;
 using TMPro;
+using System.Collections;
 
 public class IntroManager : MonoBehaviour
 {
-    public VideoClip introVideo;
+    [Header("Video Settings")]
+    public VideoClip introVideoClip; // For Android/iOS
+
+    [Header("UI Elements")]
     public GameObject choosePanel;
     public Button adminButton;
     public Button guestButton;
@@ -26,9 +31,16 @@ public class IntroManager : MonoBehaviour
     private const string AdminPassword = "Cesar";
     private const string LoginPrefKey = "LoginType";
 
+    private bool isWebGL;
+
     void Awake()
     {
-        SetupVideoPlayer();
+        isWebGL = Application.platform == RuntimePlatform.WebGLPlayer;
+
+        if (!isWebGL)
+        {
+            SetupVideoPlayer();
+        }
 
         mainPanel = choosePanel.transform.parent.gameObject;
         mainPanel.SetActive(false);
@@ -42,17 +54,23 @@ public class IntroManager : MonoBehaviour
         {
             incorrectPasswordText.gameObject.SetActive(false);
         }
+
+        StartCoroutine(CallAPIEndpoints());
+
+        if (isWebGL)
+        {
+            TransitionToMainGame();
+        }
     }
 
     void SetupVideoPlayer()
     {
-        videoPlayer = gameObject.GetComponent<VideoPlayer>();
+        videoPlayer = gameObject.AddComponent<VideoPlayer>();
         videoPlayer.playOnAwake = false;
-        videoPlayer.clip = introVideo;
         videoPlayer.isLooping = false;
+        videoPlayer.clip = introVideoClip;
         videoPlayer.renderMode = VideoRenderMode.CameraFarPlane;
         videoPlayer.targetCamera = Camera.main;
-
         videoPlayer.loopPointReached += VideoPlayer_LoopPointReached;
         videoPlayer.Play();
     }
@@ -65,10 +83,38 @@ public class IntroManager : MonoBehaviour
 
     void TransitionToMainGame()
     {
-        videoPlayer.Stop();
-        Destroy(videoPlayer);
+        if (videoPlayer != null)
+        {
+            videoPlayer.Stop();
+            Destroy(videoPlayer);
+        }
+
         mainPanel.SetActive(true);
         LoadLoginPreference();
+    }
+
+    IEnumerator CallAPIEndpoints()
+    {
+        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/adminserver"));
+        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/flavourwheel"));
+    }
+
+    IEnumerator CallAPI(string url)
+    {
+        using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
+        {
+            yield return webRequest.SendWebRequest();
+
+            if (webRequest.result == UnityWebRequest.Result.ConnectionError ||
+                webRequest.result == UnityWebRequest.Result.ProtocolError)
+            {
+                Debug.LogError($"Error calling {url}: {webRequest.error}");
+            }
+            else
+            {
+                Debug.Log($"Successfully called {url}");
+            }
+        }
     }
 
     void LoadLoginPreference()
