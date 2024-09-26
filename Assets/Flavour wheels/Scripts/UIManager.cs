@@ -53,34 +53,34 @@ public class UIManager : MonoBehaviour
     private void SetSummaryRowData(GameObject row, int rowIndex, DataManager.PlayerData player)
     {
         // Set id, username, email, spirit names as before
-        SetText(row.transform.GetChild(0), (rowIndex + 1).ToString());
-        SetText(row.transform.GetChild(1), player.username);
-        SetText(row.transform.GetChild(2), player.email);
-        SetText(row.transform.GetChild(3), player.spirit1Name);
-        SetText(row.transform.GetChild(4), player.spirit2Name);
-        SetText(row.transform.GetChild(5), player.spirit3Name);
-        SetText(row.transform.GetChild(6), player.spirit4Name);
-        SetText(row.transform.GetChild(7), player.spirit5Name);
+        SetText(row.transform.GetChild(1), (rowIndex + 1).ToString());
+        SetText(row.transform.GetChild(2), player.username);
+        SetText(row.transform.GetChild(3), player.email);
+        SetText(row.transform.GetChild(4), player.spirit1Name);
+        SetText(row.transform.GetChild(5), player.spirit2Name);
+        SetText(row.transform.GetChild(6), player.spirit3Name);
+        SetText(row.transform.GetChild(7), player.spirit4Name);
+        SetText(row.transform.GetChild(8), player.spirit5Name);
 
         // Set spirit flavours with colored backgrounds
-        SetColoredCell(row.transform.GetChild(8), player.spirit1Flavours, true);
-        SetColoredCell(row.transform.GetChild(9), player.spirit2Flavours, true);
-        SetColoredCell(row.transform.GetChild(10), player.spirit3Flavours, true);
-        SetColoredCell(row.transform.GetChild(11), player.spirit4Flavours, true);
-        SetColoredCell(row.transform.GetChild(12), player.spirit5Flavours, true);
+        SetColoredCell(row.transform.GetChild(9), player.spirit1Flavours, true);
+        SetColoredCell(row.transform.GetChild(10), player.spirit2Flavours, true);
+        SetColoredCell(row.transform.GetChild(11), player.spirit3Flavours, true);
+        SetColoredCell(row.transform.GetChild(12), player.spirit4Flavours, true);
+        SetColoredCell(row.transform.GetChild(13), player.spirit5Flavours, true);
 
         // Set spirit ratings with colored backgrounds
-        SetColoredCell(row.transform.GetChild(13), player.spirit1Ratings, false);
-        SetColoredCell(row.transform.GetChild(14), player.spirit2Ratings, false);
-        SetColoredCell(row.transform.GetChild(15), player.spirit3Ratings, false);
-        SetColoredCell(row.transform.GetChild(16), player.spirit4Ratings, false);
-        SetColoredCell(row.transform.GetChild(17), player.spirit5Ratings, false);
+        SetColoredCell(row.transform.GetChild(14), player.spirit1Ratings, false);
+        SetColoredCell(row.transform.GetChild(15), player.spirit2Ratings, false);
+        SetColoredCell(row.transform.GetChild(16), player.spirit3Ratings, false);
+        SetColoredCell(row.transform.GetChild(17), player.spirit4Ratings, false);
+        SetColoredCell(row.transform.GetChild(18), player.spirit5Ratings, false);
 
         // Set feedback
-        SetText(row.transform.GetChild(18), player.feedback);
+        SetText(row.transform.GetChild(19), player.feedback);
 
         // Set overall rating
-        SetOverallRating(row.transform.GetChild(19), player.overallRating);
+        SetOverallRating(row.transform.GetChild(20), player.overallRating);
     }
 
     private void SetColoredCell(Transform cellTransform, int value, bool isFlavour)

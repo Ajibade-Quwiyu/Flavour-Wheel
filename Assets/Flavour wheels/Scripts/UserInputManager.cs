@@ -17,7 +17,7 @@ public class UserInputManager : MonoBehaviour
 
     // UI Elements
     public TMP_InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
-    public TMP_Text myName,SummaryText;
+    public TMP_Text myName,PasscodeSummaryText,TasteFlightText;
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;
     public Button submitButton;
@@ -239,7 +239,8 @@ public class UserInputManager : MonoBehaviour
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
                 StartGame();
-                SummaryText.text = "Passcode = "+enteredPasscodeKey;
+                PasscodeSummaryText.text = "Passcode = "+enteredPasscodeKey;
+                TasteFlightText.text= "Taste Flight = "+cachedAdminData.drinkCategory;
             }
         }
         else
