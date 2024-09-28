@@ -16,7 +16,7 @@ public class UserInputManager : MonoBehaviour
     }
 
     // UI Elements
-    public TMP_InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
+    public InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
     public TMP_Text myName,PasscodeSummaryText,TasteFlightText;
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;

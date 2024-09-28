@@ -9,8 +9,8 @@ using System.Collections;
 public class AdminManager : MonoBehaviour
 {
     [SerializeField] private TMP_Dropdown drinkCategoryDropdown;
-    [SerializeField] private List<TMP_InputField> spiritInputFields;
-    [SerializeField] private TMP_InputField passkeyInputField;
+    [SerializeField] private List<InputField> spiritInputFields;
+    [SerializeField] private InputField passkeyInputField;
     [SerializeField] private Button generateKeyButton;
     [SerializeField] private GameObject signinPage;
     [SerializeField] private UserInputManager userInputManager;
@@ -81,7 +81,7 @@ public class AdminManager : MonoBehaviour
         dropdown.value = index != -1 ? index : 0;
     }
 
-    private void LoadPlayerPrefs(string key, TMP_InputField inputField, string defaultValue = "")
+    private void LoadPlayerPrefs(string key, InputField inputField, string defaultValue = "")
     {
         inputField.text = PlayerPrefs.GetString(key, defaultValue);
     }

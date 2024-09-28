@@ -10,14 +10,14 @@ using System.Collections;
 public class IntroManager : MonoBehaviour
 {
     [Header("Video Settings")]
-    public VideoClip introVideoClip; // For Android/iOS
+    public string videoRelativePath = "Flavour App intro.mp4";
 
     [Header("UI Elements")]
     public GameObject choosePanel;
     public Button adminButton;
     public Button guestButton;
     public GameObject adminPasswordPanel;
-    public TMP_InputField adminPasswordInput;
+    public InputField adminPasswordInput;
     public Button adminLoginButton;
     public TextMeshProUGUI incorrectPasswordText;
 
@@ -31,16 +31,9 @@ public class IntroManager : MonoBehaviour
     private const string AdminPassword = "Cesar";
     private const string LoginPrefKey = "LoginType";
 
-    private bool isWebGL;
-
     void Awake()
     {
-        isWebGL = Application.platform == RuntimePlatform.WebGLPlayer;
-
-        if (!isWebGL)
-        {
-            SetupVideoPlayer();
-        }
+        SetupVideoPlayer();
 
         mainPanel = choosePanel.transform.parent.gameObject;
         mainPanel.SetActive(false);
@@ -56,11 +49,6 @@ public class IntroManager : MonoBehaviour
         }
 
         StartCoroutine(CallAPIEndpoints());
-
-        if (isWebGL)
-        {
-            TransitionToMainGame();
-        }
     }
 
     void SetupVideoPlayer()
@@ -68,11 +56,46 @@ public class IntroManager : MonoBehaviour
         videoPlayer = gameObject.AddComponent<VideoPlayer>();
         videoPlayer.playOnAwake = false;
         videoPlayer.isLooping = false;
-        videoPlayer.clip = introVideoClip;
         videoPlayer.renderMode = VideoRenderMode.CameraFarPlane;
         videoPlayer.targetCamera = Camera.main;
+
+        videoPlayer.source = VideoSource.Url;
+        videoPlayer.url = GetStreamingAssetsPath();
+        videoPlayer.prepareCompleted += PrepareCompleted;
         videoPlayer.loopPointReached += VideoPlayer_LoopPointReached;
-        videoPlayer.Play();
+        videoPlayer.errorReceived += VideoPlayer_ErrorReceived;
+        videoPlayer.Prepare();
+
+        Debug.Log($"Video URL: {videoPlayer.url}");
+    }
+
+    string GetStreamingAssetsPath()
+    {
+        if (Application.platform == RuntimePlatform.WebGLPlayer)
+        {
+            return System.IO.Path.Combine(Application.streamingAssetsPath, videoRelativePath);
+        }
+        else if (Application.platform == RuntimePlatform.Android)
+        {
+            return System.IO.Path.Combine("jar:file://" + Application.dataPath + "!/assets/", videoRelativePath);
+        }
+        else
+        {
+            return System.IO.Path.Combine(Application.streamingAssetsPath, videoRelativePath);
+        }
+    }
+
+    void PrepareCompleted(VideoPlayer vp)
+    {
+        Debug.Log("Video prepared successfully");
+        vp.prepareCompleted -= PrepareCompleted;
+        vp.Play();
+    }
+
+    private void VideoPlayer_ErrorReceived(VideoPlayer source, string message)
+    {
+        Debug.LogError($"Video Player Error: {message}");
+        TransitionToMainGame();
     }
 
     private void VideoPlayer_LoopPointReached(VideoPlayer source)
@@ -199,6 +222,8 @@ public class IntroManager : MonoBehaviour
         if (videoPlayer != null)
         {
             videoPlayer.loopPointReached -= VideoPlayer_LoopPointReached;
+            videoPlayer.prepareCompleted -= PrepareCompleted;
+            videoPlayer.errorReceived -= VideoPlayer_ErrorReceived;
         }
     }
 }
