@@ -6,39 +6,26 @@ public class AnchorGameObject : MonoBehaviour
 {
     public enum AnchorType
     {
-        BottomLeft,
-        BottomCenter,
-        BottomRight,
-        MiddleLeft,
-        MiddleCenter,
-        MiddleRight,
-        TopLeft,
-        TopCenter,
-        TopRight,
-    };
+        BottomLeft, BottomCenter, BottomRight,
+        MiddleLeft, MiddleCenter, MiddleRight,
+        TopLeft, TopCenter, TopRight,
+    }
 
     public bool executeInUpdate;
-
     public AnchorType anchorType;
     public Vector3 anchorOffset;
 
-    IEnumerator updateAnchorRoutine; //Coroutine handle so we don't start it if it's already running
+    private IEnumerator updateAnchorRoutine;
 
-    // Use this for initialization
     void Start()
     {
         updateAnchorRoutine = UpdateAnchorAsync();
         StartCoroutine(updateAnchorRoutine);
     }
 
-    /// <summary>
-    /// Coroutine to update the anchor only once CameraFit.Instance is not null.
-    /// </summary>
     IEnumerator UpdateAnchorAsync()
     {
-
         uint cameraWaitCycles = 0;
-
         while (CameraViewportHandler.Instance == null)
         {
             ++cameraWaitCycles;
@@ -47,60 +34,59 @@ public class AnchorGameObject : MonoBehaviour
 
         if (cameraWaitCycles > 0)
         {
-            print(string.Format("CameraAnchor found CameraFit instance after waiting {0} frame(s). " +
-                "You might want to check that CameraFit has an earlie execution order.", cameraWaitCycles));
+            Debug.Log($"CameraAnchor found CameraFit instance after waiting {cameraWaitCycles} frame(s). " +
+                      "You might want to check that CameraFit has an earlier execution order.");
         }
 
         UpdateAnchor();
         updateAnchorRoutine = null;
-
     }
 
     void UpdateAnchor()
     {
+        Vector3 anchorPosition = GetAnchorPosition();
+        SetAnchor(anchorPosition);
+    }
+
+    Vector3 GetAnchorPosition()
+    {
         switch (anchorType)
         {
-            case AnchorType.BottomLeft:
-                SetAnchor(CameraViewportHandler.Instance.BottomLeft);
-                break;
-            case AnchorType.BottomCenter:
-                SetAnchor(CameraViewportHandler.Instance.BottomCenter);
-                break;
-            case AnchorType.BottomRight:
-                SetAnchor(CameraViewportHandler.Instance.BottomRight);
-                break;
-            case AnchorType.MiddleLeft:
-                SetAnchor(CameraViewportHandler.Instance.MiddleLeft);
-                break;
-            case AnchorType.MiddleCenter:
-                SetAnchor(CameraViewportHandler.Instance.MiddleCenter);
-                break;
-            case AnchorType.MiddleRight:
-                SetAnchor(CameraViewportHandler.Instance.MiddleRight);
-                break;
-            case AnchorType.TopLeft:
-                SetAnchor(CameraViewportHandler.Instance.TopLeft);
-                break;
-            case AnchorType.TopCenter:
-                SetAnchor(CameraViewportHandler.Instance.TopCenter);
-                break;
-            case AnchorType.TopRight:
-                SetAnchor(CameraViewportHandler.Instance.TopRight);
-                break;
+            case AnchorType.BottomLeft: return CameraViewportHandler.Instance.BottomLeft;
+            case AnchorType.BottomCenter: return CameraViewportHandler.Instance.BottomCenter;
+            case AnchorType.BottomRight: return CameraViewportHandler.Instance.BottomRight;
+            case AnchorType.MiddleLeft: return CameraViewportHandler.Instance.MiddleLeft;
+            case AnchorType.MiddleCenter: return CameraViewportHandler.Instance.MiddleCenter;
+            case AnchorType.MiddleRight: return CameraViewportHandler.Instance.MiddleRight;
+            case AnchorType.TopLeft: return CameraViewportHandler.Instance.TopLeft;
+            case AnchorType.TopCenter: return CameraViewportHandler.Instance.TopCenter;
+            case AnchorType.TopRight: return CameraViewportHandler.Instance.TopRight;
+            default: return Vector3.zero;
         }
     }
 
     void SetAnchor(Vector3 anchor)
     {
         Vector3 newPos = anchor + anchorOffset;
-        if (!transform.position.Equals(newPos))
+        newPos.z = 0f; // Ensure z-position is always zero
+
+        if (transform is RectTransform rectTransform)
         {
-            transform.position = newPos;
+            if (rectTransform.anchoredPosition3D != newPos)
+            {
+                rectTransform.anchoredPosition3D = newPos;
+            }
+        }
+        else
+        {
+            if (transform.position != newPos)
+            {
+                transform.position = newPos;
+            }
         }
     }
 
 #if UNITY_EDITOR
-    // Update is called once per frame
     void Update()
     {
         if (updateAnchorRoutine == null && executeInUpdate)
