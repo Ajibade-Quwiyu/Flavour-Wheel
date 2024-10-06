@@ -9,7 +9,7 @@
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-progress-bar-empty">
@@ -57,11 +57,11 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Master Distiller.loader.js";
+      var loaderUrl = buildUrl + "/Master_Distiller.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Master Distiller.data.gz",
-        frameworkUrl: buildUrl + "/Master Distiller.framework.js.gz",
-        codeUrl: buildUrl + "/Master Distiller.wasm.gz",
+        dataUrl: buildUrl + "/Master_Distiller.data.gz",
+        frameworkUrl: buildUrl + "/Master_Distiller.framework.js.gz",
+        codeUrl: buildUrl + "/Master_Distiller.wasm.gz",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Cesar__",
         productName: "Master_Distiller",
@@ -94,8 +94,8 @@
       } else {
         // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
 
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+        canvas.style.width = "1920px";
+        canvas.style.height = "1080px";
       }
 
       loadingBar.style.display = "block";

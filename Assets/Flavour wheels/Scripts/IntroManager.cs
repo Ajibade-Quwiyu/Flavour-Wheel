@@ -10,7 +10,7 @@ using System.Collections;
 public class IntroManager : MonoBehaviour
 {
     [Header("Video Settings")]
-    public string videoRelativePath = "Flavour App intro.mp4";
+    public VideoClip introVideo;
 
     [Header("UI Elements")]
     public GameObject choosePanel;
@@ -33,8 +33,6 @@ public class IntroManager : MonoBehaviour
 
     void Awake()
     {
-        SetupVideoPlayer();
-
         mainPanel = choosePanel.transform.parent.gameObject;
         mainPanel.SetActive(false);
         choosePanel.SetActive(false);
@@ -49,47 +47,32 @@ public class IntroManager : MonoBehaviour
         }
 
         StartCoroutine(CallAPIEndpoints());
+
+        if (Application.platform == RuntimePlatform.WebGLPlayer)
+        {
+            // For WebGL, skip video and start the game immediately
+            TransitionToMainGame();
+        }
+        else
+        {
+            SetupVideoPlayer();
+        }
     }
 
     void SetupVideoPlayer()
     {
-        videoPlayer = gameObject.AddComponent<VideoPlayer>();
-        videoPlayer.playOnAwake = false;
-        videoPlayer.isLooping = false;
-        videoPlayer.renderMode = VideoRenderMode.CameraFarPlane;
-        videoPlayer.targetCamera = Camera.main;
-
-        videoPlayer.source = VideoSource.Url;
-        videoPlayer.url = GetStreamingAssetsPath();
-        videoPlayer.prepareCompleted += PrepareCompleted;
+        if (introVideo == null)
+        {
+            Debug.LogError("Intro video clip is not assigned!");
+            TransitionToMainGame();
+            return;
+        }
+        videoPlayer = gameObject.GetComponent<VideoPlayer>();
         videoPlayer.loopPointReached += VideoPlayer_LoopPointReached;
         videoPlayer.errorReceived += VideoPlayer_ErrorReceived;
-        videoPlayer.Prepare();
+        videoPlayer.Play();
 
-        Debug.Log($"Video URL: {videoPlayer.url}");
-    }
-
-    string GetStreamingAssetsPath()
-    {
-        if (Application.platform == RuntimePlatform.WebGLPlayer)
-        {
-            return System.IO.Path.Combine(Application.streamingAssetsPath, videoRelativePath);
-        }
-        else if (Application.platform == RuntimePlatform.Android)
-        {
-            return System.IO.Path.Combine("jar:file://" + Application.dataPath + "!/assets/", videoRelativePath);
-        }
-        else
-        {
-            return System.IO.Path.Combine(Application.streamingAssetsPath, videoRelativePath);
-        }
-    }
-
-    void PrepareCompleted(VideoPlayer vp)
-    {
-        Debug.Log("Video prepared successfully");
-        vp.prepareCompleted -= PrepareCompleted;
-        vp.Play();
+        Debug.Log("Starting video playback");
     }
 
     private void VideoPlayer_ErrorReceived(VideoPlayer source, string message)
@@ -222,7 +205,6 @@ public class IntroManager : MonoBehaviour
         if (videoPlayer != null)
         {
             videoPlayer.loopPointReached -= VideoPlayer_LoopPointReached;
-            videoPlayer.prepareCompleted -= PrepareCompleted;
             videoPlayer.errorReceived -= VideoPlayer_ErrorReceived;
         }
     }
