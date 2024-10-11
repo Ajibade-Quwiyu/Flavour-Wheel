@@ -21,7 +21,7 @@ public class UIManager : MonoBehaviour
     {
         ClearTable(FlavourTable1_Flavour);
         ClearTable(FlavourTable1_Rating);
-        int maxRowsToShow = Mathf.Min(players.Count, 10);
+        int maxRowsToShow = Mathf.Min(players.Count, 30);
         for (int i = 0; i < maxRowsToShow; i++)
         {
             CreateFlavourTableRow(FlavourTable1_Flavour, i, players[i], true);
@@ -31,7 +31,7 @@ public class UIManager : MonoBehaviour
     public void UpdateSummaryTable(List<DataManager.PlayerData> players)
     {
         ClearTable(summaryTable);
-        int maxRowsToShow = Mathf.Min(players.Count, 10);
+        int maxRowsToShow = Mathf.Min(players.Count, 30);
         for (int i = 0; i < maxRowsToShow; i++)
         {
             CreateSummaryTableRow(summaryTable, i, players[i]);
