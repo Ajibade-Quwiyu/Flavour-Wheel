@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
-using System.Runtime.InteropServices;
 
 public class DeviceDetector : MonoBehaviour
 {
@@ -16,12 +15,13 @@ public class DeviceDetector : MonoBehaviour
 
     [SerializeField]
     private RectTransform targetRectTransform;
-
     [SerializeField]
     private float iPadHeight = 500f;
 
-    [DllImport("__Internal")]
+    #if UNITY_WEBGL && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("__Internal")]
     private static extern System.IntPtr DetectDevice();
+    #endif
 
     void Start()
     {
@@ -61,12 +61,12 @@ public class DeviceDetector : MonoBehaviour
 
     public static string GetDeviceType()
     {
-#if UNITY_WEBGL && !UNITY_EDITOR
+        #if UNITY_WEBGL && !UNITY_EDITOR
         System.IntPtr ptr = DetectDevice();
         if (ptr != System.IntPtr.Zero)
         {
-            string result = Marshal.PtrToStringAnsi(ptr);
-            Marshal.FreeHGlobal(ptr);
+            string result = System.Runtime.InteropServices.Marshal.PtrToStringAnsi(ptr);
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(ptr);
             return result;
         }
         else
@@ -74,8 +74,8 @@ public class DeviceDetector : MonoBehaviour
             Debug.LogError("DetectDevice returned null pointer");
             return "Error";
         }
-#else
+        #else
         return "Other";
-#endif
+        #endif
     }
 }
