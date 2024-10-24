@@ -3,139 +3,171 @@ using UnityEngine.EventSystems;
 
 public class ZoomAndPan : MonoBehaviour, IPointerDownHandler, IDragHandler
 {
-   RectTransform imageRect; // Reference to the image RectTransform
-   public RectTransform maskRect;  // Reference to the mask RectTransform
+    RectTransform imageRect;
+    public RectTransform maskRect;
 
-   private Vector2 originalSize;
-   private Vector2 originalPosition;
-   private Vector3 lastMousePosition;
+    private Vector2 originalSize;
+    private Vector2 originalPosition;
+    private Vector2 lastMousePosition;
 
-   public float zoomSpeed = 0.1f;     // Speed of zooming
-   public float panSpeed = 1f;        // Speed of panning
-   public float minZoom = 1f;
-   public float maxZoom = 3f;
+    public float zoomSpeed = 0.01f;
+    public float panSpeed = 1f;
+    public float minZoom = 1f;
+    public float maxZoom = 3f;
 
-   // Specify the tag or name to identify the specific instance
-   public string targetTag = "ZoomTarget";
+    public string targetTag = "ZoomTarget";
 
-   void Start()
-   {
-       imageRect = this.GetComponent<RectTransform>();
+    private Vector2 touchStartPosition;
+    private float lastPinchDistance = 0f;
+    private Vector2 lastPinchCenter;
 
-       // Save the original size and position of the image
-       originalSize = imageRect.sizeDelta;
-       originalPosition = imageRect.anchoredPosition;
-   }
+    void Start()
+    {
+        imageRect = this.GetComponent<RectTransform>();
+        originalSize = imageRect.sizeDelta;
+        originalPosition = imageRect.anchoredPosition;
+    }
 
-   void Update()
-   {
-       // Check if this instance has the specified tag
-       if (!this.gameObject.CompareTag(targetTag))
-       {
-           return;
-       }
+    void Update()
+    {
+        if (!this.gameObject.CompareTag(targetTag)) return;
 
-       // Handle zooming
-       if (Input.touchCount == 2)
-       {
-           Touch touch0 = Input.GetTouch(0);
-           Touch touch1 = Input.GetTouch(1);
+        if (Input.touchCount == 2)
+        {
+            HandlePinchZoom();
+        }
+        else if (Input.GetAxis("Mouse ScrollWheel") != 0f)
+        {
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            Vector2 mousePosition = Input.mousePosition;
+            Zoom(scroll * zoomSpeed * 10f, mousePosition);
+        }
+    }
 
-           Vector2 touch0PrevPos = touch0.position - touch0.deltaPosition;
-           Vector2 touch1PrevPos = touch1.position - touch1.deltaPosition;
+    private void HandlePinchZoom()
+    {
+        Touch touch0 = Input.GetTouch(0);
+        Touch touch1 = Input.GetTouch(1);
 
-           float prevMagnitude = (touch0PrevPos - touch1PrevPos).magnitude;
-           float currentMagnitude = (touch0.position - touch1.position).magnitude;
+        Vector2 touch0Pos = touch0.position;
+        Vector2 touch1Pos = touch1.position;
 
-           float difference = currentMagnitude - prevMagnitude;
+        float currentPinchDistance = Vector2.Distance(touch0Pos, touch1Pos);
+        Vector2 currentPinchCenter = (touch0Pos + touch1Pos) / 2f;
 
-           Zoom(difference * zoomSpeed);
-       }
-       else if (Input.GetAxis("Mouse ScrollWheel") != 0f)
-       {
-           float scroll = Input.GetAxis("Mouse ScrollWheel");
-           Zoom(scroll * zoomSpeed * 100f);
-       }
-   }
+        if (touch0.phase == TouchPhase.Began || touch1.phase == TouchPhase.Began)
+        {
+            lastPinchDistance = currentPinchDistance;
+            lastPinchCenter = currentPinchCenter;
+        }
+        else if (touch0.phase == TouchPhase.Moved || touch1.phase == TouchPhase.Moved)
+        {
+            float pinchDelta = currentPinchDistance - lastPinchDistance;
+            Zoom(pinchDelta * zoomSpeed, currentPinchCenter);
 
-   public void OnPointerDown(PointerEventData eventData)
-   {
-       if (!this.gameObject.CompareTag(targetTag)) return;
-       lastMousePosition = Input.mousePosition;
-   }
+            lastPinchDistance = currentPinchDistance;
+            lastPinchCenter = currentPinchCenter;
+        }
+    }
 
-   public void OnDrag(PointerEventData eventData)
-   {
-       if (!this.gameObject.CompareTag(targetTag)) return;
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (!this.gameObject.CompareTag(targetTag)) return;
+        lastMousePosition = eventData.position;
+        touchStartPosition = eventData.position;
+    }
 
-       if (imageRect.localScale.x <= 1f && imageRect.localScale.y <= 1f)
-           return;
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!this.gameObject.CompareTag(targetTag)) return;
 
-       Vector3 delta = (Input.mousePosition - lastMousePosition) * panSpeed;
-       imageRect.anchoredPosition += new Vector2(delta.x, delta.y);
+        if (Input.touchCount == 1)
+        {
+            if (Vector2.Distance(eventData.position, touchStartPosition) > 10f)
+            {
+                Vector2 delta = ((Vector2)Input.mousePosition - lastMousePosition) * panSpeed;
+                imageRect.anchoredPosition += delta;
+                ClampToBounds();
+            }
+        }
 
-       // Restrict movement within mask bounds when zoomed in
-       ClampToBounds();
+        lastMousePosition = Input.mousePosition;
+    }
 
-       lastMousePosition = Input.mousePosition;
-   }
+    private void Zoom(float increment, Vector2 zoomCenter)
+    {
+        if (!this.gameObject.CompareTag(targetTag)) return;
 
-   private void Zoom(float increment)
-   {
-       if (!this.gameObject.CompareTag(targetTag)) return;
 
-       Vector3 scale = imageRect.localScale;
-       scale += Vector3.one * increment;
-       scale = Vector3.Max(Vector3.one * minZoom, Vector3.Min(Vector3.one * maxZoom, scale));
-       imageRect.localScale = scale;
 
-       // Center the image when zooming out to its original size
-       if (scale.x <= 1f)
-       {
-           imageRect.anchoredPosition = originalPosition;
-       }
-       else
-       {
-           // Clamp position when zoomed in
-           ClampToBounds();
-       }
-   }
+        Vector3 oldScale = imageRect.localScale;
+        Vector3 newScale = oldScale * (1 + increment);
+        newScale.x = Mathf.Clamp(newScale.x, minZoom, maxZoom);
+        newScale.y = Mathf.Clamp(newScale.y, minZoom, maxZoom);
+        newScale.z = oldScale.z; // Preserve z-scale
 
-   private void ClampToBounds()
-   {
-       if (!this.gameObject.CompareTag(targetTag)) return;
+        // Convert screen point to local point in rect
+        Vector2 localZoomCenter;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(imageRect, zoomCenter, null, out localZoomCenter);
 
-       Vector3 position = imageRect.anchoredPosition;
+        // Calculate zoom pivot in normalized space
+        Vector2 normalizedPivot = Rect.PointToNormalized(imageRect.rect, localZoomCenter);
 
-       float imageWidth = imageRect.rect.width * imageRect.localScale.x;
-       float imageHeight = imageRect.rect.height * imageRect.localScale.y;
+        // Apply zoom
+        imageRect.localScale = newScale;
 
-       float maskWidth = maskRect.rect.width;
-       float maskHeight = maskRect.rect.height;
+        // Calculate new position to maintain zoom center
+        Vector2 newLocalZoomCenter = Rect.NormalizedToPoint(imageRect.rect, normalizedPivot);
+        Vector2 deltaPivot = newLocalZoomCenter - localZoomCenter;
+        Vector2 deltaPosition = new Vector2(deltaPivot.x * newScale.x, deltaPivot.y * newScale.y);
 
-       float minX = (maskWidth - imageWidth) / 2;
-       float maxX = -minX;
-       float minY = (maskHeight - imageHeight) / 2;
-       float maxY = -minY;
+        imageRect.anchoredPosition -= deltaPosition;
 
-       if (imageWidth > maskWidth)
-       {
-           position.x = Mathf.Clamp(position.x, minX, maxX);
-       }
-       else
-       {
-           position.x = Mathf.Clamp(position.x, -maxX, maxX);
-       }
+        // If zooming in and close to minZoom, gradually move towards center
+        if (increment < 0 && newScale.x < minZoom + 0.1f)
+        {
+            float t = (minZoom + 0.1f - newScale.x) / 0.1f; // Transition factor
+            imageRect.anchoredPosition = Vector2.Lerp(imageRect.anchoredPosition, originalPosition, t);
+        }
 
-       if (imageHeight > maskHeight)
-       {
-           position.y = Mathf.Clamp(position.y, minY, maxY);
-       }
-       else
-       {
-           position.y = Mathf.Clamp(position.y, -maxY, maxY);
-       }
+        ClampToBounds();
+    }
 
-       imageRect.anchoredPosition = position;
-   }
+    private void ClampToBounds()
+    {
+        if (!this.gameObject.CompareTag(targetTag)) return;
+
+        Vector2 position = imageRect.anchoredPosition;
+
+        float imageWidth = imageRect.rect.width * imageRect.localScale.x;
+        float imageHeight = imageRect.rect.height * imageRect.localScale.y;
+
+        float maskWidth = maskRect.rect.width;
+        float maskHeight = maskRect.rect.height;
+
+        float minX = (maskWidth - imageWidth) / 2;
+        float maxX = -minX;
+        float minY = (maskHeight - imageHeight) / 2;
+        float maxY = -minY;
+
+        if (imageWidth > maskWidth)
+        {
+            position.x = Mathf.Clamp(position.x, minX, maxX);
+        }
+        else
+        {
+            position.x = 0;  // Center horizontally if smaller than mask
+        }
+
+        if (imageHeight > maskHeight)
+        {
+            position.y = Mathf.Clamp(position.y, minY, maxY);
+        }
+        else
+        {
+            position.y = 0;  // Center vertically if smaller than mask
+        }
+
+        imageRect.anchoredPosition = position;
+    }
 }
