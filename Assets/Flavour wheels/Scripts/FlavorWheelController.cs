@@ -35,6 +35,7 @@ public class FlavorWheelController : MonoBehaviour
     void Start()
     {
         InitializeController();
+        AddRigidbodies();
     }
 
     void Update()
@@ -66,34 +67,83 @@ public class FlavorWheelController : MonoBehaviour
             }
         }
     }
+    private void AddRigidbodies()
+    {
+        // Add Rigidbody2D to all images in hierarchy
+        void AddRigidbodyRecursive(ChildHierarchy currentHierarchy)
+        {
+            if (currentHierarchy.image != null)
+            {
+                // Only add if it doesn't already have one
+                if (currentHierarchy.image.GetComponent<Rigidbody2D>() == null)
+                {
+                    Rigidbody2D rb = currentHierarchy.image.gameObject.AddComponent<Rigidbody2D>();
+                    rb.bodyType = RigidbodyType2D.Kinematic;
+                    rb.simulated = true;
+                }
+            }
 
+            foreach (var child in currentHierarchy.children)
+            {
+                AddRigidbodyRecursive(child);
+            }
+        }
+
+        AddRigidbodyRecursive(hierarchy);
+    }
     // Input handling methods
     private void HandleInput()
     {
-        if (!Input.GetMouseButtonDown(0)) return;
+        Vector2 inputPosition = Vector2.zero;
+        bool inputDetected = false;
 
-        var hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-        if (hit.collider?.GetComponent<Image>() is Image image && IsPartOfHierarchy(image))
-        {
-            if (image == GetComponent<Image>())
+#if UNITY_EDITOR
+            if (Input.GetMouseButtonDown(0))
             {
-                HandleMainImageClick();
+                inputPosition = Input.mousePosition;
+                inputDetected = true;
             }
-            else
+#else
+        if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+        {
+            inputPosition = Input.GetTouch(0).position;
+            inputDetected = true;
+        }
+#endif
+
+        if (!inputDetected) return;
+
+        Ray ray = Camera.main.ScreenPointToRay(inputPosition);
+        RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            Image hitImage = hit.collider?.GetComponent<Image>();
+            if (hitImage != null && IsPartOfHierarchy(hitImage))
             {
-                isDoubleClick = Time.time - lastClickTime <= doubleClickTime;
-                if (isDoubleClick)
+                if (hitImage == GetComponent<Image>())
                 {
-                    HandleDoubleClick(image);
+                    HandleMainImageClick();
                 }
                 else
                 {
-                    StartCoroutine(HandleSingleClick(image));
+                    isDoubleClick = Time.time - lastClickTime <= doubleClickTime;
+                    if (isDoubleClick)
+                    {
+                        HandleDoubleClick(hitImage);
+                    }
+                    else
+                    {
+                        StartCoroutine(HandleSingleClick(hitImage));
+                    }
                 }
+                lastClickTime = Time.time;
+                break;
             }
-            lastClickTime = Time.time;
         }
     }
+
+
 
     private void HandleMainImageClick()
     {
@@ -158,7 +208,7 @@ public class FlavorWheelController : MonoBehaviour
             DisplayMaxSelectionsReached();
         }
         PlayDoubleClickSound();
-       // Handheld.Vibrate();
+        // Handheld.Vibrate();
     }
     // Image state management methods
     private void ToggleImageState(Image image)
@@ -275,7 +325,7 @@ public class FlavorWheelController : MonoBehaviour
         dataRecorder?.UnrecordFlavor(image.name, image.transform.parent?.name, !anySiblingSelected);
         RemoveDoubleClickIndicator(image);
         ScaleImage(image, false);
-        
+
         int decrementAmount = doubleClickedImages.TryGetValue(image, out bool isDoubleClicked) && isDoubleClicked ? 2 : 1;
         selectedImages.Remove(image);
         doubleClickedImages.Remove(image);
@@ -405,7 +455,7 @@ public class FlavorWheelController : MonoBehaviour
         image.gameObject.SetActive(true);
         if (IsGrandchild(image))
         {
-            image.color = selectedImages.TryGetValue(image, out bool isSelected) && isSelected ? 
+            image.color = selectedImages.TryGetValue(image, out bool isSelected) && isSelected ?
                 (image.color == doubleClickColor ? doubleClickColor : Color.white) : Color.white;
         }
         else
@@ -429,7 +479,7 @@ public class FlavorWheelController : MonoBehaviour
             : originalScales[image];
     }
 
-     private void ApplyDoubleClickIndicator(Image image)
+    private void ApplyDoubleClickIndicator(Image image)
     {
         if (image != null && IsGrandchild(image))
         {
