@@ -17,7 +17,7 @@ public class UserInputManager : MonoBehaviour
 
     // UI Elements
     public InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
-    public TMP_Text myName,PasscodeSummaryText,TasteFlightText;
+    public TMP_Text myName, PasscodeSummaryText, TasteFlightText;
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;
     public Button submitButton;
@@ -51,7 +51,7 @@ public class UserInputManager : MonoBehaviour
     private AdminData cachedAdminData;
     private bool isDataLoaded = false, isOfflineMode = false, isDataRetrievalInProgress = false;
     private Coroutine dataRetrievalCoroutine;
-    private bool isGameActive = false;
+    public bool isGameActive = false;
 
     private int overallRating = 0;
 
@@ -233,25 +233,20 @@ public class UserInputManager : MonoBehaviour
             }
             else
             {
+                isGameActive = true;
                 UpdateUI(cachedAdminData);
                 incorrectPasscodeIndicator.SetActive(false);
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
-                StartGame();
-                PasscodeSummaryText.text = "Passcode = "+enteredPasscodeKey;
-                TasteFlightText.text= "Taste Flight = "+cachedAdminData.drinkCategory;
+                PasscodeSummaryText.text = "Passcode = " + enteredPasscodeKey;
+                TasteFlightText.text = "Taste Flight = " + cachedAdminData.drinkCategory;
             }
         }
         else
         {
             DisplayConnectionError("The key you entered is incorrect!!");
         }
-    }
-
-    private void StartGame()
-    {
-        isGameActive = true;
     }
 
     public IEnumerator VerifyPasscode(System.Action<bool> callback)
@@ -285,7 +280,7 @@ public class UserInputManager : MonoBehaviour
         incorrectPasscodeIndicator.SetActive(true);
     }
 
-    private void PlayParticleEffects()
+    public void PlayParticleEffects()
     {
         if (particles?.Length > 0)
         {
