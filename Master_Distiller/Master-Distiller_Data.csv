@@ -1,0 +1,8 @@
+Player ID,Username,Email,Spirit1Name,Spirit2Name,Spirit3Name,Spirit4Name,Spirit5Name,Spirit1Flavours,Spirit2Flavours,Spirit3Flavours,Spirit4Flavours,Spirit5Flavours,Spirit1Ratings,Spirit2Ratings,Spirit3Ratings,Spirit4Ratings,Spirit5Ratings,Feedback,OverallRating
+1,Quwi,,AA,BB,CC,DD,EE,1,1,1,1,1,0,0,0,0,0,"",0
+2,Quwi,,AA,BB,CC,DD,EE,1,1,1,1,1,0,0,0,0,0,"",0
+3,Quwi,,AA,BB,CC,DD,EE,1,1,1,1,1,0,0,0,0,0,"",0
+4,Tt,,AA,BB,CC,DD,EE,1,1,1,1,1,0,0,0,0,0,"",0
+
+Admin ID,Drink Category,Spirit1,Spirit2,Spirit3,Spirit4,Spirit5,Passcode Key
+280,BOURBON,AA,BB,CC,DD,EE,8953

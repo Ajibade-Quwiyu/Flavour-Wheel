@@ -75,7 +75,7 @@ public class Dart : MonoBehaviour
         if (other.CompareTag("dart_board"))
         {
             //Trigger viberaton
-            Handheld.Vibrate();
+            //Handheld.Vibrate();
 
             GetComponent<Rigidbody>().isKinematic = true;
             isDartRotating = false;
