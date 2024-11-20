@@ -137,31 +137,37 @@ public class ARController : MonoBehaviour
     }
 
     void PlaceObject()
+{
+    if (placementRef == null)
     {
-        if (placementRef == null)
-        {
-            placementRef = new GameObject("PlacementRef");
-        }
-
-        ARPlane plane = planeManager.GetPlane(hits[0].trackableId);
-        currentAnchor = anchorManager.AttachAnchor(plane, placementPose);
-
-        if (currentAnchor != null)
-        {
-            placementRef.transform.parent = currentAnchor.transform;
-            placementRef.transform.SetPositionAndRotation(placementPose.position, placementPose.rotation);
-
-            objectToPlace.gameObject.SetActive(true);
-            objectToPlace.SetParent(placementRef.transform);
-            objectToPlace.localPosition = Vector3.zero;
-            objectToPlace.localRotation = Quaternion.Euler(-90f, 0f, 180f);
-
-            OnObjectPlaced?.Invoke();
-        }
-
-        isPlaced = true;
-        placementIndicator.SetActive(false);
+        placementRef = new GameObject("PlacementRef");
     }
+
+    ARPlane plane = planeManager.GetPlane(hits[0].trackableId);
+    currentAnchor = anchorManager.AttachAnchor(plane, placementPose);
+
+    if (currentAnchor != null)
+    {
+        placementRef.transform.parent = currentAnchor.transform;
+        placementRef.transform.SetPositionAndRotation(placementPose.position, placementPose.rotation);
+
+        objectToPlace.gameObject.SetActive(true);
+        objectToPlace.SetParent(placementRef.transform);
+        objectToPlace.localPosition = Vector3.zero;
+        objectToPlace.localRotation = Quaternion.Euler(-90f, 0f, 180f);
+
+        // Disable all detected planes after successful placement
+        foreach (var detectedPlane in planeManager.trackables)
+        {
+            detectedPlane.gameObject.SetActive(false);
+        }
+
+        OnObjectPlaced?.Invoke();
+    }
+
+    isPlaced = true;
+    placementIndicator.SetActive(false);
+}
 
     public void ToggleCamera()
     {

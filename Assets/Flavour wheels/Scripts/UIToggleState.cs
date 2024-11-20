@@ -22,6 +22,7 @@ public enum FlavorCategory
     SPARKLING_WINE,
     GIN,
     TEQUILA,
+    WHITEWINE,
     BEER
 }
 
@@ -52,7 +53,7 @@ public class UIToggleState : MonoBehaviour
         SetActiveLanguage();
     }
 
-public void SetActiveFlavorCategory(FlavorCategory newCategory)
+    public void SetActiveFlavorCategory(FlavorCategory newCategory)
     {
         activeFlavorCategory = newCategory;
         SetActiveLanguage();

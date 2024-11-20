@@ -1,17 +1,13 @@
 using UnityEngine;
-using UnityEngine.Video;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Events;
-using UnityEngine.Networking;
 using TMPro;
+using UnityEngine.SceneManagement;
+using UnityEngine.Networking;
 using System.Collections;
 
 public class IntroManager : MonoBehaviour
 {
-    [Header("Video Settings")]
-    public VideoClip introVideo;
-
     [Header("UI Elements")]
     public GameObject choosePanel;
     public Button adminButton;
@@ -21,9 +17,7 @@ public class IntroManager : MonoBehaviour
     public Button adminLoginButton;
     public TextMeshProUGUI incorrectPasswordText;
 
-    private VideoPlayer videoPlayer;
     private GameObject mainPanel;
-
     public UnityEvent OnAdminLogin;
     public UnityEvent OnGuestLogin;
     public UnityEvent OnAdminLoginFail;
@@ -34,7 +28,7 @@ public class IntroManager : MonoBehaviour
     void Awake()
     {
         mainPanel = choosePanel.transform.parent.gameObject;
-        mainPanel.SetActive(false);
+        mainPanel.SetActive(true);
         choosePanel.SetActive(false);
 
         adminButton.onClick.AddListener(AdminLogin);
@@ -47,55 +41,6 @@ public class IntroManager : MonoBehaviour
         }
 
         StartCoroutine(CallAPIEndpoints());
-
-        if (Application.platform == RuntimePlatform.WebGLPlayer)
-        {
-            // For WebGL, skip video and start the game immediately
-            TransitionToMainGame();
-        }
-        else
-        {
-            SetupVideoPlayer();
-        }
-    }
-
-    void SetupVideoPlayer()
-    {
-        if (introVideo == null)
-        {
-            Debug.LogError("Intro video clip is not assigned!");
-            TransitionToMainGame();
-            return;
-        }
-        videoPlayer = gameObject.GetComponent<VideoPlayer>();
-        videoPlayer.loopPointReached += VideoPlayer_LoopPointReached;
-        videoPlayer.errorReceived += VideoPlayer_ErrorReceived;
-        videoPlayer.Play();
-
-        Debug.Log("Starting video playback");
-    }
-
-    private void VideoPlayer_ErrorReceived(VideoPlayer source, string message)
-    {
-        Debug.LogError($"Video Player Error: {message}");
-        TransitionToMainGame();
-    }
-
-    private void VideoPlayer_LoopPointReached(VideoPlayer source)
-    {
-        Debug.Log("Video playback completed");
-        TransitionToMainGame();
-    }
-
-    void TransitionToMainGame()
-    {
-        if (videoPlayer != null)
-        {
-            videoPlayer.Stop();
-            Destroy(videoPlayer);
-        }
-
-        mainPanel.SetActive(true);
         LoadLoginPreference();
     }
 
@@ -198,14 +143,5 @@ public class IntroManager : MonoBehaviour
     public void ReloadScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
-
-    void OnDestroy()
-    {
-        if (videoPlayer != null)
-        {
-            videoPlayer.loopPointReached -= VideoPlayer_LoopPointReached;
-            videoPlayer.errorReceived -= VideoPlayer_ErrorReceived;
-        }
     }
 }
