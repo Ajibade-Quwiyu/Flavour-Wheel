@@ -20,7 +20,7 @@ public class BeverageToggleState : MonoBehaviour
     private bool isEnglish; // true for English, false for Spanish
 
     public List<TranslationPair> wordPairs = new List<TranslationPair>();
-    [SerializeField] private BeverageData beverageData;
+    [SerializeField] private List<BeverageData> beverageDataList = new List<BeverageData>();
     [SerializeField] private BeverageType activeBeverageType;
 
     private const string LanguagePrefsKey = "SelectedLanguage";
@@ -77,9 +77,13 @@ public class BeverageToggleState : MonoBehaviour
 
     private List<BeverageData.BeveragePair> GetActiveTranslationPairs()
     {
-        if (beverageData != null && beverageData.beverageType == activeBeverageType)
+        // Find the beverage data that matches the active type by name
+        BeverageData activeData = beverageDataList.FirstOrDefault(data => data != null &&
+            data.name.StartsWith(activeBeverageType.ToString(), System.StringComparison.OrdinalIgnoreCase));
+
+        if (activeData != null)
         {
-            return beverageData.translationPairs;
+            return activeData.translationPairs;
         }
         return new List<BeverageData.BeveragePair>();
     }
