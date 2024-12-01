@@ -39,32 +39,50 @@ public class IntroManager : MonoBehaviour
         {
             incorrectPasswordText.gameObject.SetActive(false);
         }
+    }
 
-        StartCoroutine(CallAPIEndpoints());
+    void Start()
+    {
+        // Show UI immediately
         LoadLoginPreference();
+
+        // Start API calls in parallel in background
+        StartCoroutine(CallAPIEndpoints());
     }
 
     IEnumerator CallAPIEndpoints()
     {
-        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/adminserver"));
-        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/flavourwheel"));
+        // Start both requests simultaneously
+        var request1 = UnityWebRequest.Get("https://flavour-wheel-server.onrender.com/api/adminserver");
+        var request2 = UnityWebRequest.Get("https://flavour-wheel-server.onrender.com/api/flavourwheel");
+
+        var operation1 = request1.SendWebRequest();
+        var operation2 = request2.SendWebRequest();
+
+        // Wait for both to complete
+        while (!operation1.isDone || !operation2.isDone)
+        {
+            yield return null;
+        }
+
+        // Handle results
+        HandleAPIResponse(request1, "adminserver");
+        HandleAPIResponse(request2, "flavourwheel");
+
+        request1.Dispose();
+        request2.Dispose();
     }
 
-    IEnumerator CallAPI(string url)
+    private void HandleAPIResponse(UnityWebRequest request, string endpoint)
     {
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
+        if (request.result == UnityWebRequest.Result.ConnectionError ||
+            request.result == UnityWebRequest.Result.ProtocolError)
         {
-            yield return webRequest.SendWebRequest();
-
-            if (webRequest.result == UnityWebRequest.Result.ConnectionError ||
-                webRequest.result == UnityWebRequest.Result.ProtocolError)
-            {
-                Debug.LogError($"Error calling {url}: {webRequest.error}");
-            }
-            else
-            {
-                Debug.Log($"Successfully called {url}");
-            }
+            Debug.LogError($"Error calling {endpoint}: {request.error}");
+        }
+        else
+        {
+            Debug.Log($"Successfully called {endpoint}");
         }
     }
 
@@ -95,6 +113,7 @@ public class IntroManager : MonoBehaviour
 
     void GuestLogin()
     {
+        SaveGuestPreference();
         InvokeGuestEvent();
     }
 
@@ -143,5 +162,13 @@ public class IntroManager : MonoBehaviour
     public void ReloadScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void ClearPrefsAndRestart()
+    {
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+        mainPanel.SetActive(true);
+        choosePanel.SetActive(true);
     }
 }
