@@ -13,7 +13,7 @@ public enum BeverageType
     GIN,
     TEQUILA,
     WHITEWINE,
-    BEER
+    COCKTAIL
 }
 
 [CreateAssetMenu(fileName = "New Beverage Data", menuName = "Translation/Beverage Data")]

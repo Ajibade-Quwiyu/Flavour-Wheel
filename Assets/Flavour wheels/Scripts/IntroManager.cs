@@ -17,7 +17,6 @@ public class IntroManager : MonoBehaviour
     public Button adminLoginButton;
     public TextMeshProUGUI incorrectPasswordText;
 
-    private GameObject mainPanel;
     public UnityEvent OnAdminLogin;
     public UnityEvent OnGuestLogin;
     public UnityEvent OnAdminLoginFail;
@@ -27,8 +26,6 @@ public class IntroManager : MonoBehaviour
 
     void Awake()
     {
-        mainPanel = choosePanel.transform.parent.gameObject;
-        mainPanel.SetActive(true);
         choosePanel.SetActive(false);
 
         adminButton.onClick.AddListener(AdminLogin);
@@ -168,7 +165,6 @@ public class IntroManager : MonoBehaviour
     {
         PlayerPrefs.DeleteAll();
         PlayerPrefs.Save();
-        mainPanel.SetActive(true);
         choosePanel.SetActive(true);
     }
 }
