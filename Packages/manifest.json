@@ -8,6 +8,9 @@
 <<<<<<< Updated upstream
 =======
     "com.unity.ide.vscode": "1.2.5",
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     "com.unity.multiplayer.center": "1.0.0",
     "com.unity.test-framework": "1.4.5",
@@ -15,6 +18,11 @@
     "com.unity.ugui": "2.0.0",
     "com.unity.uiextensions": "https://github.com/Unity-UI-Extensions/com.unity.uiextensions.git",
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+    "com.unity.xr.arcore": "6.0.3",
+    "com.unity.xr.arfoundation": "6.0.3",
+>>>>>>> Stashed changes
 =======
     "com.unity.xr.arcore": "6.0.3",
     "com.unity.xr.arfoundation": "6.0.3",
