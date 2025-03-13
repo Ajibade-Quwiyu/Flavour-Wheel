@@ -1,17 +1,13 @@
 using UnityEngine;
-using UnityEngine.Video;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Events;
-using UnityEngine.Networking;
 using TMPro;
+using UnityEngine.SceneManagement;
+using UnityEngine.Networking;
 using System.Collections;
 
 public class IntroManager : MonoBehaviour
 {
-    [Header("Video Settings")]
-    public VideoClip introVideo;
-
     [Header("UI Elements")]
     public GameObject choosePanel;
     public Button adminButton;
@@ -20,9 +16,6 @@ public class IntroManager : MonoBehaviour
     public InputField adminPasswordInput;
     public Button adminLoginButton;
     public TextMeshProUGUI incorrectPasswordText;
-
-    private VideoPlayer videoPlayer;
-    private GameObject mainPanel;
 
     public UnityEvent OnAdminLogin;
     public UnityEvent OnGuestLogin;
@@ -33,8 +26,6 @@ public class IntroManager : MonoBehaviour
 
     void Awake()
     {
-        mainPanel = choosePanel.transform.parent.gameObject;
-        mainPanel.SetActive(false);
         choosePanel.SetActive(false);
 
         adminButton.onClick.AddListener(AdminLogin);
@@ -45,81 +36,50 @@ public class IntroManager : MonoBehaviour
         {
             incorrectPasswordText.gameObject.SetActive(false);
         }
-
-        StartCoroutine(CallAPIEndpoints());
-
-        if (Application.platform == RuntimePlatform.WebGLPlayer)
-        {
-            // For WebGL, skip video and start the game immediately
-            TransitionToMainGame();
-        }
-        else
-        {
-            SetupVideoPlayer();
-        }
     }
 
-    void SetupVideoPlayer()
+    void Start()
     {
-        if (introVideo == null)
-        {
-            Debug.LogError("Intro video clip is not assigned!");
-            TransitionToMainGame();
-            return;
-        }
-        videoPlayer = gameObject.GetComponent<VideoPlayer>();
-        videoPlayer.loopPointReached += VideoPlayer_LoopPointReached;
-        videoPlayer.errorReceived += VideoPlayer_ErrorReceived;
-        videoPlayer.Play();
-
-        Debug.Log("Starting video playback");
-    }
-
-    private void VideoPlayer_ErrorReceived(VideoPlayer source, string message)
-    {
-        Debug.LogError($"Video Player Error: {message}");
-        TransitionToMainGame();
-    }
-
-    private void VideoPlayer_LoopPointReached(VideoPlayer source)
-    {
-        Debug.Log("Video playback completed");
-        TransitionToMainGame();
-    }
-
-    void TransitionToMainGame()
-    {
-        if (videoPlayer != null)
-        {
-            videoPlayer.Stop();
-            Destroy(videoPlayer);
-        }
-
-        mainPanel.SetActive(true);
+        // Show UI immediately
         LoadLoginPreference();
+
+        // Start API calls in parallel in background
+        StartCoroutine(CallAPIEndpoints());
     }
 
     IEnumerator CallAPIEndpoints()
     {
-        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/adminserver"));
-        yield return StartCoroutine(CallAPI("https://flavour-wheel-server.onrender.com/api/flavourwheel"));
+        // Start both requests simultaneously
+        var request1 = UnityWebRequest.Get("https://flavour-wheel-server.onrender.com/api/adminserver");
+        var request2 = UnityWebRequest.Get("https://flavour-wheel-server.onrender.com/api/flavourwheel");
+
+        var operation1 = request1.SendWebRequest();
+        var operation2 = request2.SendWebRequest();
+
+        // Wait for both to complete
+        while (!operation1.isDone || !operation2.isDone)
+        {
+            yield return null;
+        }
+
+        // Handle results
+        HandleAPIResponse(request1, "adminserver");
+        HandleAPIResponse(request2, "flavourwheel");
+
+        request1.Dispose();
+        request2.Dispose();
     }
 
-    IEnumerator CallAPI(string url)
+    private void HandleAPIResponse(UnityWebRequest request, string endpoint)
     {
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
+        if (request.result == UnityWebRequest.Result.ConnectionError ||
+            request.result == UnityWebRequest.Result.ProtocolError)
         {
-            yield return webRequest.SendWebRequest();
-
-            if (webRequest.result == UnityWebRequest.Result.ConnectionError ||
-                webRequest.result == UnityWebRequest.Result.ProtocolError)
-            {
-                Debug.LogError($"Error calling {url}: {webRequest.error}");
-            }
-            else
-            {
-                Debug.Log($"Successfully called {url}");
-            }
+            Debug.LogError($"Error calling {endpoint}: {request.error}");
+        }
+        else
+        {
+            Debug.Log($"Successfully called {endpoint}");
         }
     }
 
@@ -150,6 +110,7 @@ public class IntroManager : MonoBehaviour
 
     void GuestLogin()
     {
+        SaveGuestPreference();
         InvokeGuestEvent();
     }
 
@@ -200,12 +161,10 @@ public class IntroManager : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
-    void OnDestroy()
+    public void ClearPrefsAndRestart()
     {
-        if (videoPlayer != null)
-        {
-            videoPlayer.loopPointReached -= VideoPlayer_LoopPointReached;
-            videoPlayer.errorReceived -= VideoPlayer_ErrorReceived;
-        }
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+        choosePanel.SetActive(true);
     }
 }

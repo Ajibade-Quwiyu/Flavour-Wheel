@@ -17,7 +17,7 @@ public class UserInputManager : MonoBehaviour
 
     // UI Elements
     public InputField usernameInputField, emailInputField, passcodeKeyInputField, overallExperienceInputField;
-    public TMP_Text myName,PasscodeSummaryText,TasteFlightText;
+    public TMP_Text myName, PasscodeSummaryText, TasteFlightText;
     public Transform overallRatingTransform;
     public List<Transform> SpiritNamesList, drinkCategoryTransforms;
     public Button submitButton;
@@ -36,7 +36,7 @@ public class UserInputManager : MonoBehaviour
 
     // Managers
     public SpiritManager spiritManager;
-    public UIToggleState uIToggleState;
+    public BeverageToggleState beverageToggleState;
 
     // Constants
     private const int maxRetries = 3;
@@ -51,7 +51,7 @@ public class UserInputManager : MonoBehaviour
     private AdminData cachedAdminData;
     private bool isDataLoaded = false, isOfflineMode = false, isDataRetrievalInProgress = false;
     private Coroutine dataRetrievalCoroutine;
-    private bool isGameActive = false;
+    public bool isGameActive = false;
 
     private int overallRating = 0;
 
@@ -233,25 +233,20 @@ public class UserInputManager : MonoBehaviour
             }
             else
             {
+                isGameActive = true;
                 UpdateUI(cachedAdminData);
                 incorrectPasscodeIndicator.SetActive(false);
                 signInPage.SetActive(false);
                 gamePanel.SetActive(true);
                 PlayParticleEffects();
-                StartGame();
-                PasscodeSummaryText.text = "Passcode = "+enteredPasscodeKey;
-                TasteFlightText.text= "Taste Flight = "+cachedAdminData.drinkCategory;
+                PasscodeSummaryText.text = "Passcode = " + enteredPasscodeKey;
+                TasteFlightText.text = "Taste Flight = " + cachedAdminData.drinkCategory;
             }
         }
         else
         {
             DisplayConnectionError("The key you entered is incorrect!!");
         }
-    }
-
-    private void StartGame()
-    {
-        isGameActive = true;
     }
 
     public IEnumerator VerifyPasscode(System.Action<bool> callback)
@@ -285,7 +280,7 @@ public class UserInputManager : MonoBehaviour
         incorrectPasscodeIndicator.SetActive(true);
     }
 
-    private void PlayParticleEffects()
+    public void PlayParticleEffects()
     {
         if (particles?.Length > 0)
         {
@@ -362,9 +357,9 @@ public class UserInputManager : MonoBehaviour
     private void UpdateUI(AdminData data)
     {
         drinkCategoryText.text = $"{data.drinkCategory} WHEEL";
-        if (System.Enum.TryParse(data.drinkCategory, true, out FlavorCategory category))
+        if (System.Enum.TryParse(data.drinkCategory, true, out BeverageType category))
         {
-            uIToggleState.SetActiveFlavorCategory(category);
+            beverageToggleState.SetActiveBeverageType(category);
         }
         var spirits = new[] { data.spirit1, data.spirit2, data.spirit3, data.spirit4, data.spirit5 };
         var textFields = new[] { "spirit1Text", "spirit2Text", "spirit3Text", "spirit4Text", "spirit5Text" };
