@@ -61,7 +61,11 @@
   <ItemGroup>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     <Analyzer Include="C:\Users\Quwiyu\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.0.5\Analyzers\Microsoft.Unity.Analyzers.dll" />
+=======
+    <Analyzer Include="C:\Users\Quwiyu\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.0\Analyzers\Microsoft.Unity.Analyzers.dll" />
+>>>>>>> Stashed changes
 =======
     <Analyzer Include="C:\Users\Quwiyu\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.0\Analyzers\Microsoft.Unity.Analyzers.dll" />
 >>>>>>> Stashed changes
@@ -80,6 +84,7 @@
     <Compile Include="Assets\Keyboard Package\Scripts\KeyboardButtonController.cs" />
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\TMP_ExampleScript_01.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\TMPro_InstructionOverlay.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\AnchorGameObject.cs" />
@@ -91,11 +96,16 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\EnvMapAnimator.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\FlavorWheelDataRecorder.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SceneSelector.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\ARClickUI.cs" />
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -107,6 +117,7 @@
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark04.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\UserInputManager.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\ChatController.cs" />
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\ObjectSpin.cs" />
@@ -133,6 +144,8 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     <Compile Include="Assets\Flavour wheels\Scripts\SwipeUI.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\DataManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\SpiritManager.cs" />
@@ -143,6 +156,7 @@
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\TextMeshSpawner.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark01.cs" />
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark02.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\CameraViewportHandler.cs" />
@@ -152,6 +166,8 @@
     <Compile Include="Assets\Flavour wheels\Scripts\WebGLHttpClient.cs" />
 =======
 =======
+=======
+>>>>>>> Stashed changes
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark02.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\CameraViewportHandler.cs" />
     <Compile Include="Assets\AR Packages\Scripts\Dart.cs" />
@@ -188,6 +204,9 @@
     <Compile Include="Assets\Flavour wheels\Scripts\WebGLHttpClient.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\BeverageToggleState.cs" />
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -196,6 +215,7 @@
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\WarpTextExample.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\TextMeshProFloatingText.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\ShaderPropAnimator.cs" />
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\CameraController.cs" />
@@ -208,6 +228,10 @@
 =======
     <Compile Include="Assets\Keyboard Package\Scripts\GameManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\ScrollRectTransition.cs" />
+=======
+    <Compile Include="Assets\Keyboard Package\Scripts\GameManager.cs" />
+    <Compile Include="Assets\Flavour wheels\Scripts\ScrollRectTransition.cs" />
+>>>>>>> Stashed changes
 =======
     <Compile Include="Assets\Keyboard Package\Scripts\GameManager.cs" />
     <Compile Include="Assets\Flavour wheels\Scripts\ScrollRectTransition.cs" />
@@ -230,6 +254,9 @@
 =======
     <None Include="Assets\AR Packages\shaders\UnlitVertexColour_Alpha.shader" />
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -1222,7 +1249,10 @@
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.36f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\Facades\System.Xml.XPath.XDocument.dll</HintPath>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
       <Private>False</Private>
@@ -1270,6 +1300,9 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -1287,6 +1320,7 @@
       <HintPath>Library\ScriptAssemblies\Unity.Multiplayer.Center.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
     <Reference Include="UnityEditor.UI">
@@ -1307,15 +1341,22 @@
     <Reference Include="Unity.Mathematics.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.Mathematics.Editor.dll</HintPath>
 >>>>>>> Stashed changes
+=======
+    <Reference Include="Unity.Mathematics.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.Mathematics.Editor.dll</HintPath>
+>>>>>>> Stashed changes
       <Private>False</Private>
     </Reference>
     <Reference Include="NativeShare.Runtime">
       <HintPath>Library\ScriptAssemblies\NativeShare.Runtime.dll</HintPath>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       <Private>False</Private>
     </Reference>
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
       <Private>False</Private>
@@ -1399,6 +1440,8 @@
     <Reference Include="Unity.Mathematics">
       <HintPath>Library\ScriptAssemblies\Unity.Mathematics.dll</HintPath>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
 =======
       <Private>False</Private>
     </Reference>
@@ -1423,6 +1466,22 @@
       <HintPath>Library\ScriptAssemblies\Unity.XR.ARFoundation.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+<<<<<<< Updated upstream
+    <Reference Include="Unity.VSCode.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.VSCode.Editor.dll</HintPath>
+>>>>>>> Stashed changes
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.XR.ARCore">
+      <HintPath>Library\ScriptAssemblies\Unity.XR.ARCore.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.XR.ARFoundation.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.XR.ARFoundation.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+=======
+>>>>>>> Stashed changes
     <Reference Include="Unity.TextMeshPro.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.TextMeshPro.Editor.dll</HintPath>
       <Private>False</Private>
@@ -1445,6 +1504,7 @@
     </Reference>
     <Reference Include="Unity.InputSystem">
       <HintPath>Library\ScriptAssemblies\Unity.InputSystem.dll</HintPath>
+<<<<<<< Updated upstream
       <Private>False</Private>
     </Reference>
 >>>>>>> Stashed changes
@@ -1516,6 +1576,8 @@
     </Reference>
     <Reference Include="Unity.InputSystem">
       <HintPath>Library\ScriptAssemblies\Unity.InputSystem.dll</HintPath>
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       <Private>False</Private>
     </Reference>
