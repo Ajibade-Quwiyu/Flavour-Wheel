@@ -21,7 +21,7 @@ public class IntroManager : MonoBehaviour
     public UnityEvent OnGuestLogin;
     public UnityEvent OnAdminLoginFail;
 
-    private const string AdminPassword = "Cesar";
+    private const string AdminPassword = "cesarrobles123";
     private const string LoginPrefKey = "LoginType";
 
     void Awake()
